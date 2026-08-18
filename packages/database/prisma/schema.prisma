@@ -1,0 +1,656 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ----------------------------------------------------
+// ENUMS
+// ----------------------------------------------------
+
+enum UserRole {
+  CUSTOMER
+  SUPER_ADMIN
+  ADMIN
+  BRANCH_MANAGER
+  KITCHEN
+  DELIVERY
+  STAFF
+}
+
+enum OrderType {
+  PICKUP
+  DELIVERY
+  DINE_IN
+}
+
+enum OrderStatus {
+  DRAFT
+  PENDING_PAYMENT
+  PAYMENT_VERIFYING
+  PAID
+  CONFIRMED
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  COMPLETED
+  CANCELLED
+  EXPIRED
+  PAYMENT_FAILED
+  MANUAL_REVIEW
+  DELIVERY_FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  VERIFYING
+  VERIFIED
+  FAILED
+  MANUAL_REVIEW
+  REFUNDED
+}
+
+enum DeliveryStatus {
+  UNASSIGNED
+  ASSIGNED
+  PICKED_UP
+  OUT_FOR_DELIVERY
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+enum NotificationChannel {
+  LINE
+  TELEGRAM
+  EMAIL
+  SMS
+}
+
+enum NotificationEventType {
+  ORDER_CREATED
+  PAYMENT_VERIFYING
+  PAYMENT_VERIFIED
+  PAYMENT_FAILED
+  ORDER_CONFIRMED
+  ORDER_PREPARING
+  ORDER_READY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  ORDER_CANCELLED
+}
+
+enum PromotionType {
+  FIXED_DISCOUNT
+  PERCENTAGE_DISCOUNT
+  FREE_DELIVERY
+  BUY_X_GET_Y
+}
+
+// ----------------------------------------------------
+// USER & AUTHENTICATION
+// ----------------------------------------------------
+
+model User {
+  id           String    @id @default(uuid())
+  email        String?   @unique
+  passwordHash String?   @map("password_hash")
+  name         String
+  phone        String?
+  role         UserRole  @default(CUSTOMER)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  lineUser     LineUser?
+  staff        Staff?
+  addresses    Address[]
+  carts        Cart[]
+  orders       Order[]
+
+  @@map("users")
+}
+
+model LineUser {
+  id           String   @id @default(uuid())
+  userId       String   @unique @map("user_id")
+  lineUserId   String   @unique @map("line_user_id") // LINE 'sub' / userId
+  displayName  String   @map("display_name")
+  pictureUrl   String?  @map("picture_url")
+  statusMessage String? @map("status_message")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders       Order[]
+
+  @@map("line_users")
+}
+
+model Staff {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  branchId  String?  @map("branch_id")
+  role      UserRole @default(STAFF)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@map("staff")
+}
+
+model Role {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  permissions Permission[]
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  roleId      String   @map("role_id")
+  action      String   // e.g. "orders.read", "products.write"
+  resource    String   // e.g. "orders", "products"
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  role        Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, action, resource])
+  @@map("permissions")
+}
+
+// ----------------------------------------------------
+// BRANCHES & OPERATIONAL HOURS
+// ----------------------------------------------------
+
+model Branch {
+  id                   String               @id @default(uuid())
+  name                 String
+  code                 String               @unique
+  isActive             Boolean              @default(true) @map("is_active")
+  address              String?
+  latitude             Decimal?             @db.Decimal(10, 8)
+  longitude            Decimal?             @db.Decimal(11, 8)
+  openingTime          String?              @map("opening_time") // e.g. "10:00"
+  closingTime          String?              @map("closing_time") // e.g. "22:00"
+  lastOrderTime        String?              @map("last_order_time") // e.g. "21:30"
+  telegramEnabled      Boolean              @default(false) @map("telegram_enabled")
+  telegramChatId       String?              @map("telegram_chat_id")
+  paymentReceiverType  String?              @map("payment_receiver_type") // e.g. "PROMPTPAY"
+  paymentReceiverValue String?              @map("payment_receiver_value") // Phone or Account No.
+  paymentReceiverName  String?              @map("payment_receiver_name")
+  paymentReceiverBank  String?              @map("payment_receiver_bank")
+  createdAt            DateTime             @default(now()) @map("created_at")
+  updatedAt            DateTime             @updatedAt @map("updated_at")
+
+  openingHours         BranchOpeningHour[]
+  staff                Staff[]
+  products             Product[]
+  carts                Cart[]
+  orders               Order[]
+  deliveryStaff        DeliveryStaff[]
+  promotions           Promotion[]
+
+  @@map("branches")
+}
+
+model BranchOpeningHour {
+  id         String   @id @default(uuid())
+  branchId   String   @map("branch_id")
+  dayOfWeek  Int      @map("day_of_week") // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  openTime   String   @map("open_time")   // "10:00"
+  closeTime  String   @map("close_time")  // "22:00"
+  isClosed   Boolean  @default(false) @map("is_closed")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  branch     Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([branchId, dayOfWeek])
+  @@map("branch_opening_hours")
+}
+
+// ----------------------------------------------------
+// MENU: CATEGORIES, PRODUCTS, MODIFIERS
+// ----------------------------------------------------
+
+model Category {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  imageUrl    String?   @map("image_url")
+  sortOrder   Int       @default(0) @map("sort_order")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id            String                 @id @default(uuid())
+  branchId      String?                @map("branch_id") // Optional branch-specific override
+  categoryId    String                 @map("category_id")
+  name          String
+  description   String?
+  imageUrl      String?                @map("image_url")
+  basePrice     Decimal                @db.Decimal(10, 2) @map("base_price")
+  isAvailable   Boolean                @default(true) @map("is_available") // Realtime Sold-Out Toggle
+  isActive      Boolean                @default(true) @map("is_active")
+  sortOrder     Int                    @default(0) @map("sort_order")
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
+
+  category      Category               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  branch        Branch?                @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  variants      ProductVariant[]
+  modifierGroups ProductModifierGroup[]
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+
+  @@index([categoryId, isActive, isAvailable])
+  @@map("products")
+}
+
+model ProductVariant {
+  id         String     @id @default(uuid())
+  productId  String     @map("product_id")
+  name       String     // e.g. "Size L", "Set A"
+  price      Decimal    @db.Decimal(10, 2)
+  isDefault  Boolean    @default(false) @map("is_default")
+  isActive   Boolean    @default(true) @map("is_active")
+  sortOrder  Int        @default(0) @map("sort_order")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  product    Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@map("product_variants")
+}
+
+model ModifierGroup {
+  id          String                 @id @default(uuid())
+  name        String                 // e.g. "Spiciness Level", "Extra Toppings"
+  minSelect   Int                    @default(0) @map("min_select")
+  maxSelect   Int                    @default(1) @map("max_select")
+  isRequired  Boolean                @default(false) @map("is_required")
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+
+  modifiers   Modifier[]
+  products    ProductModifierGroup[]
+
+  @@map("modifier_groups")
+}
+
+model Modifier {
+  id              String               @id @default(uuid())
+  modifierGroupId String               @map("modifier_group_id")
+  name            String               // e.g. "Extra Spicy", "Cheese"
+  price           Decimal              @default(0) @db.Decimal(10, 2)
+  isAvailable     Boolean              @default(true) @map("is_available")
+  sortOrder       Int                  @default(0) @map("sort_order")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+
+  modifierGroup   ModifierGroup        @relation(fields: [modifierGroupId], references: [id], onDelete: Cascade)
+  cartItemModifiers CartItemModifier[]
+  orderItemModifiers OrderItemModifier[]
+
+  @@map("modifiers")
+}
+
+model ProductModifierGroup {
+  id              String        @id @default(uuid())
+  productId       String        @map("product_id")
+  modifierGroupId String        @map("modifier_group_id")
+  sortOrder       Int           @default(0) @map("sort_order")
+
+  product         Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  modifierGroup   ModifierGroup @relation(fields: [modifierGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, modifierGroupId])
+  @@map("product_modifier_groups")
+}
+
+// ----------------------------------------------------
+// CART SYSTEM
+// ----------------------------------------------------
+
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String?    @map("user_id")
+  branchId  String     @map("branch_id")
+  sessionId String?    @unique @map("session_id")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch    Branch     @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id               String             @id @default(uuid())
+  cartId           String             @map("cart_id")
+  productId        String             @map("product_id")
+  productVariantId String?            @map("product_variant_id")
+  quantity         Int                @default(1)
+  specialNote      String?            @map("special_note")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  cart             Cart               @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product          Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant          ProductVariant?    @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  modifiers        CartItemModifier[]
+
+  @@map("cart_items")
+}
+
+model CartItemModifier {
+  id         String   @id @default(uuid())
+  cartItemId String   @map("cart_item_id")
+  modifierId String   @map("modifier_id")
+
+  cartItem   CartItem @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
+  modifier   Modifier @relation(fields: [modifierId], references: [id], onDelete: Restrict)
+
+  @@unique([cartItemId, modifierId])
+  @@map("cart_item_modifiers")
+}
+
+// ----------------------------------------------------
+// ORDERS & STATE MACHINE
+// ----------------------------------------------------
+
+model Order {
+  id               String           @id @default(uuid())
+  orderNo          String           @unique @map("order_no") // e.g. XC260818-0042
+  userId           String?          @map("user_id")
+  lineUserId       String?          @map("line_user_id")
+  branchId         String           @map("branch_id")
+  orderType        OrderType        @default(DELIVERY) @map("order_type")
+
+  subtotal         Decimal          @db.Decimal(10, 2)
+  discount         Decimal          @default(0) @db.Decimal(10, 2)
+  deliveryFee      Decimal          @default(0) @db.Decimal(10, 2) @map("delivery_fee")
+  total            Decimal          @db.Decimal(10, 2)
+
+  paymentStatus    PaymentStatus    @default(PENDING) @map("payment_status")
+  orderStatus      OrderStatus      @default(PENDING_PAYMENT) @map("order_status")
+
+  customerName     String           @map("customer_name")
+  customerPhone    String           @map("customer_phone")
+  addressId        String?          @map("address_id")
+  deliveryAddress  String?          @map("delivery_address")
+  deliveryLatitude Decimal?         @db.Decimal(10, 8) @map("delivery_latitude")
+  deliveryLongitude Decimal?        @db.Decimal(11, 8) @map("delivery_longitude")
+  note             String?
+
+  expiresAt        DateTime         @map("expires_at")
+  paidAt           DateTime?        @map("paid_at")
+  confirmedAt      DateTime?        @map("confirmed_at")
+  preparingAt      DateTime?        @map("preparing_at")
+  readyAt          DateTime?        @map("ready_at")
+  outForDeliveryAt DateTime?        @map("out_for_delivery_at")
+  deliveredAt      DateTime?        @map("delivered_at")
+  completedAt      DateTime?        @map("completed_at")
+
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  user             User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lineUser         LineUser?        @relation(fields: [lineUserId], references: [lineUserId], onDelete: SetNull)
+  branch           Branch           @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  address          Address?         @relation(fields: [addressId], references: [id], onDelete: SetNull)
+
+  items            OrderItem[]
+  payment          Payment?
+  delivery         Delivery?
+  statusLogs       OrderStatusLog[]
+  notificationLogs NotificationLog[]
+
+  @@index([branchId, orderStatus])
+  @@index([orderNo])
+  @@map("orders")
+}
+
+model OrderItem {
+  id               String              @id @default(uuid())
+  orderId          String              @map("order_id")
+  productId        String              @map("product_id")
+  productVariantId String?             @map("product_variant_id")
+  productName      String              @map("product_name")
+  variantName      String?             @map("variant_name")
+  unitPrice        Decimal             @db.Decimal(10, 2) @map("unit_price")
+  quantity         Int                 @default(1)
+  subtotal         Decimal             @db.Decimal(10, 2)
+  specialNote      String?             @map("special_note")
+
+  order            Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product          Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant          ProductVariant?     @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  modifiers        OrderItemModifier[]
+
+  @@map("order_items")
+}
+
+model OrderItemModifier {
+  id           String    @id @default(uuid())
+  orderItemId  String    @map("order_item_id")
+  modifierId   String    @map("modifier_id")
+  modifierName String    @map("modifier_name")
+  price        Decimal   @default(0) @db.Decimal(10, 2)
+
+  orderItem    OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  modifier     Modifier  @relation(fields: [modifierId], references: [id], onDelete: Restrict)
+
+  @@map("order_item_modifiers")
+}
+
+model OrderStatusLog {
+  id          String      @id @default(uuid())
+  orderId     String      @map("order_id")
+  fromStatus  OrderStatus? @map("from_status")
+  toStatus    OrderStatus @map("to_status")
+  changedBy   String?     @map("changed_by") // User ID, System, or Worker
+  reason      String?
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_status_logs")
+}
+
+// ----------------------------------------------------
+// PAYMENTS & SLIP2GO INTEGRATION
+// ----------------------------------------------------
+
+model Payment {
+  id                 String        @id @default(uuid())
+  orderId            String        @unique @map("order_id")
+  provider           String        @default("PROMPTPAY")
+  amount             Decimal       @db.Decimal(10, 2)
+  currency           String        @default("THB")
+  status             PaymentStatus @default(PENDING)
+
+  slip2goReferenceId String?       @map("slip2go_reference_id")
+  transactionRef     String?       @unique @map("transaction_ref") // CRITICAL: Unique DB Constraint for duplicate prevention
+  transferDatetime   DateTime?     @map("transfer_datetime")
+
+  senderName         String?       @map("sender_name")
+  senderBank         String?       @map("sender_bank")
+  receiverName       String?       @map("receiver_name")
+  receiverBank       String?       @map("receiver_bank")
+
+  rawResponse        Json?         @map("raw_response")
+  verifiedAt         DateTime?     @map("verified_at")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+
+  order              Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  slips              PaymentSlip[]
+
+  @@map("payments")
+}
+
+model PaymentSlip {
+  id         String   @id @default(uuid())
+  paymentId  String   @map("payment_id")
+  bucket     String   // e.g. "food-slips" (Private)
+  objectKey  String   @map("object_key") // e.g. "payment-slips/2026/08/18/{uuid}.jpg"
+  mimeType   String   @map("mime_type")
+  size       Int
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  payment    Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@map("payment_slips")
+}
+
+// ----------------------------------------------------
+// ADDRESS & DELIVERY SYSTEM
+// ----------------------------------------------------
+
+model Address {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  label        String   @default("Home") // e.g. "Home", "Work"
+  recipientName String  @map("recipient_name")
+  phone        String
+  addressLine  String   @map("address_line")
+  subdistrict  String?
+  district     String?
+  province     String?
+  postalCode   String?  @map("postal_code")
+  latitude     Decimal? @db.Decimal(10, 8)
+  longitude    Decimal? @db.Decimal(11, 8)
+  note         String?
+  isDefault    Boolean  @default(false) @map("is_default")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders       Order[]
+
+  @@map("addresses")
+}
+
+model DeliveryStaff {
+  id          String        @id @default(uuid())
+  branchId    String        @map("branch_id")
+  name        String
+  phone       String
+  status      String        @default("AVAILABLE") // AVAILABLE, BUSY, OFFLINE
+  isActive    Boolean       @default(true) @map("is_active")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  branch      Branch        @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  deliveries  Delivery[]
+
+  @@map("delivery_staff")
+}
+
+model Delivery {
+  id               String         @id @default(uuid())
+  orderId          String         @unique @map("order_id")
+  deliveryStaffId  String?        @map("delivery_staff_id")
+  status           DeliveryStatus @default(UNASSIGNED)
+
+  assignedAt       DateTime?      @map("assigned_at")
+  pickedUpAt       DateTime?      @map("picked_up_at")
+  outForDeliveryAt DateTime?      @map("out_for_delivery_at")
+  deliveredAt      DateTime?      @map("delivered_at")
+
+  note             String?
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  deliveryStaff    DeliveryStaff? @relation(fields: [deliveryStaffId], references: [id], onDelete: SetNull)
+
+  @@map("deliveries")
+}
+
+// ----------------------------------------------------
+// PROMOTIONS & COUPONS
+// ----------------------------------------------------
+
+model Promotion {
+  id             String        @id @default(uuid())
+  branchId       String?       @map("branch_id")
+  name           String
+  description    String?
+  type           PromotionType @default(FIXED_DISCOUNT)
+  discountValue  Decimal       @db.Decimal(10, 2) @map("discount_value")
+  minSpend       Decimal       @default(0) @db.Decimal(10, 2) @map("min_spend")
+  startDate      DateTime      @map("start_date")
+  endDate        DateTime      @map("end_date")
+  isActive       Boolean       @default(true) @map("is_active")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  branch         Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  coupons        Coupon[]
+
+  @@map("promotions")
+}
+
+model Coupon {
+  id          String    @id @default(uuid())
+  promotionId String    @map("promotion_id")
+  code        String    @unique
+  maxUsage    Int       @default(1) @map("max_usage")
+  usedCount   Int       @default(0) @map("used_count")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@map("coupons")
+}
+
+// ----------------------------------------------------
+// AUDIT & NOTIFICATION LOGS
+// ----------------------------------------------------
+
+model NotificationLog {
+  id                String                @id @default(uuid())
+  channel           NotificationChannel
+  eventType         NotificationEventType @map("event_type")
+  orderId           String?               @map("order_id")
+  recipient         String                // Telegram Chat ID or LINE User ID
+  status            String                // SENT, FAILED, RETRYING
+  retryCount        Int                   @default(0) @map("retry_count")
+  providerMessageId String?               @map("provider_message_id")
+  errorMessage      String?               @map("error_message")
+  sentAt            DateTime?             @map("sent_at")
+  createdAt         DateTime              @default(now()) @map("created_at")
+
+  order             Order?                @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, eventType])
+  @@map("notification_logs")
+}

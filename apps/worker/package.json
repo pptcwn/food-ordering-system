@@ -1,0 +1,32 @@
+{
+  "name": "@food-ordering/worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@food-ordering/config": "workspace:*",
+    "@food-ordering/database": "workspace:*",
+    "@food-ordering/types": "workspace:*",
+    "@nestjs/bullmq": "^10.2.3",
+    "@nestjs/common": "^10.4.15",
+    "@nestjs/config": "^3.3.0",
+    "@nestjs/core": "^10.4.15",
+    "axios": "^1.7.9",
+    "bullmq": "^5.34.10",
+    "dotenv": "^16.4.7",
+    "form-data": "^4.0.2",
+    "ioredis": "^5.4.2",
+    "minio": "^8.0.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.4.9",
+    "@types/node": "^22.13.4",
+    "typescript": "^5.7.3"
+  }
+}

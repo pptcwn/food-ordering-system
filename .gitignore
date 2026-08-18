@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.pnpm-debug.log*
+
+# Environment Variables (Secrets)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+!*.env.example
+
+# Next.js Build Outputs
+.next/
+out/
+build/
+dist/
+
+# NestJS / TypeScript Builds
+apps/*/dist/
+packages/*/dist/
+*.tsbuildinfo
+
+# Prisma
+packages/database/prisma/*.db
+packages/database/prisma/*.db-journal
+
+# Storage & Temporary Files
+data/
+minio-data/
+postgres-data/
+redis-data/
+uptime-kuma-data/
+scratch/
+tmp/
+temp/
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE & OS Files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# AI Harness & Backup Cache
+.vibecode-backup*/
+.gemini/

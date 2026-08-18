@@ -1,0 +1,22 @@
+{
+  "name": "food-ordering-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LINE Official Account Food Ordering System Monorepo",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "dev": "pnpm -r --parallel run dev",
+    "lint": "pnpm -r run lint",
+    "test": "pnpm -r run test",
+    "db:generate": "pnpm --filter @food-ordering/database run db:generate",
+    "db:push": "pnpm --filter @food-ordering/database run db:push",
+    "db:migrate": "pnpm --filter @food-ordering/database run db:migrate",
+    "db:seed": "pnpm --filter @food-ordering/database run db:seed",
+    "db:studio": "pnpm --filter @food-ordering/database run db:studio"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "typescript": "^5.7.3"
+  },
+  "packageManager": "pnpm@9.15.4"
+}
