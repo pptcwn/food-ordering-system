@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
@@ -17,9 +18,13 @@ import {
   X,
   Package,
   Loader2,
+  ArrowLeft,
+  Store,
+  ChevronRight,
 } from 'lucide-react';
 
 export default function DeliveryDashboardPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [confirmingOrder, setConfirmingOrder] = useState<any>(null);
@@ -36,7 +41,7 @@ export default function DeliveryDashboardPage() {
   const { data: orders = [], isLoading } = useQuery<any[]>({
     queryKey: ['delivery-orders', selectedBranchId],
     queryFn: () => apiClient.get(`/orders/admin/all?branchId=${selectedBranchId}`),
-    refetchInterval: 5000,
+    refetchInterval: 4000,
   });
 
   // Start Delivery mutation
@@ -53,14 +58,12 @@ export default function DeliveryDashboardPage() {
 
   // Complete Delivery with Photo Proof
   const completeDeliveryMutation = useMutation({
-    mutationFn: async ({ orderId, file, note }: { orderId: string; file: File | null; note?: string }) => {
-      // Find delivery record if exists
-      const deliveryResp = await apiClient.patch(`/orders/admin/${orderId}/status`, {
+    mutationFn: async ({ orderId, note }: { orderId: string; note?: string }) => {
+      return apiClient.patch(`/orders/admin/${orderId}/status`, {
         status: OrderStatus.DELIVERED,
         changedBy: 'RIDER_STAFF',
-        reason: note || 'Delivered to customer',
+        reason: note || 'จัดส่งเรียบร้อย',
       });
-      return deliveryResp;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['delivery-orders'] });
@@ -86,20 +89,31 @@ export default function DeliveryDashboardPage() {
   );
 
   return (
-    <div className="flex-1 flex flex-col p-4 pb-16 space-y-4 max-w-lg mx-auto w-full min-h-screen bg-zinc-50">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-zinc-200">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center">
-            <Bike className="w-5 h-5" />
+    <div className="flex-1 flex flex-col p-4 pb-20 space-y-4 max-w-lg mx-auto w-full min-h-screen bg-slate-50">
+      {/* 1. Header */}
+      <header className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 py-3.5 flex items-center justify-between shadow-xs -mx-4 -mt-4 mb-2">
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => router.push('/admin')}
+            className="p-1.5 rounded-full hover:bg-slate-100 text-slate-700 transition-colors btn-tactile"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-emerald-50 text-[#06C755] flex items-center justify-center font-bold">
+              <Bike className="w-4 h-4" />
+            </div>
+            <div>
+              <h1 className="text-sm font-bold text-slate-900">คิวงานจัดส่ง (Rider Dispatch)</h1>
+              <p className="text-[10px] text-slate-400">รายการอาหารที่พร้อมนำส่งลูกค้า</p>
+            </div>
           </div>
-          <h1 className="text-base font-black text-zinc-900">Rider Delivery Jobs</h1>
         </div>
 
         <select
           value={selectedBranchId}
           onChange={(e) => setSelectedBranchId(e.target.value)}
-          className="bg-white border border-zinc-200 text-xs text-zinc-800 rounded-xl px-2.5 py-1.5 focus:outline-none shadow-sm"
+          className="bg-slate-100 border-none text-[11px] font-bold text-slate-700 rounded-xl px-2.5 py-1.5 focus:ring-2 focus:ring-[#06C755]"
         >
           <option value="">ทุกสาขา</option>
           {branches.map((b: any) => (
@@ -108,227 +122,177 @@ export default function DeliveryDashboardPage() {
             </option>
           ))}
         </select>
-      </div>
+      </header>
 
-      {/* Orders List */}
-      <div className="space-y-4">
+      {/* 2. Order Jobs List */}
+      <div className="space-y-3">
         {isLoading ? (
-          <div className="flex items-center justify-center h-48 text-zinc-400">
-            <Loader2 className="w-7 h-7 animate-spin text-rose-600" />
+          <div className="py-20 flex flex-col items-center justify-center text-slate-400">
+            <Loader2 className="w-6 h-6 animate-spin mb-2 text-[#06C755]" />
+            <p className="text-xs">กำลังค้นหาคิวจัดส่ง...</p>
+          </div>
+        ) : deliveryOrders.length === 0 ? (
+          <div className="py-16 px-4 bg-white rounded-2xl border border-slate-200/80 text-center shadow-xs">
+            <div className="w-14 h-14 rounded-full bg-emerald-50 text-[#06C755] flex items-center justify-center mx-auto mb-2">
+              <Bike className="w-7 h-7" />
+            </div>
+            <h3 className="font-bold text-sm text-slate-900 mb-1">ยังไม่มีงานส่งในขณะนี้</h3>
+            <p className="text-xs text-slate-500 max-w-[240px] mx-auto">
+              เมื่อครัวปรุงอาหารเสร็จแล้ว รายการจะปรากฏที่นี่เพื่อส่งมอบให้คนขับ
+            </p>
           </div>
         ) : (
-          deliveryOrders.map((order: any) => (
-            <div
-              key={order.id}
-              className="p-4 bg-white border border-zinc-200 rounded-3xl space-y-3.5 shadow-sm"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-xs font-mono font-black text-rose-600">
-                    #{order.orderNo}
-                  </span>
-                  <h3 className="text-sm font-bold text-zinc-900 mt-0.5">{order.customerName}</h3>
-                </div>
-                <span
-                  className={`text-[11px] px-2.5 py-1 rounded-full font-bold ${
-                    order.orderStatus === 'OUT_FOR_DELIVERY'
-                      ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  }`}
-                >
-                  {order.orderStatus === 'OUT_FOR_DELIVERY' ? 'กำลังนำส่ง 🛵' : 'พร้อมจัดส่ง 📦'}
-                </span>
-              </div>
+          deliveryOrders.map((order: any) => {
+            const isOut = order.orderStatus === 'OUT_FOR_DELIVERY';
 
-              {/* Address & Phone */}
-              <div className="p-3 bg-zinc-50 rounded-2xl space-y-2 text-xs text-zinc-700 border border-zinc-100">
-                <div className="flex items-start space-x-2">
-                  <MapPin className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+            return (
+              <div
+                key={order.id}
+                className={`bg-white rounded-2xl p-4 border shadow-xs space-y-3 relative overflow-hidden transition-all ${
+                  isOut ? 'border-emerald-300 ring-2 ring-emerald-100' : 'border-slate-200/80'
+                }`}
+              >
+                {/* Header status */}
+                <div className="flex items-start justify-between gap-2 pb-2.5 border-b border-slate-100">
                   <div>
-                    <p className="font-semibold">{order.deliveryAddress || order.deliveryAddressLine}</p>
-                    {order.deliveryNote && (
-                      <p className="text-zinc-500 text-[11px]">หมายเหตุ: {order.deliveryNote}</p>
-                    )}
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-slate-900">
+                        {order.customerName}
+                      </span>
+                      <span className="text-[10px] font-mono font-bold text-slate-400">
+                        #{order.orderNumber || order.id.slice(0, 6)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      เบอร์โทร: <span className="font-mono font-semibold text-slate-800">{order.customerPhone}</span>
+                    </p>
                   </div>
+
+                  <span
+                    className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
+                      isOut ? 'bg-emerald-50 text-[#06C755] border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                    }`}
+                  >
+                    {isOut ? '🛵 กำลังวิ่งส่ง' : '📦 ครัวทำเสร็จแล้ว'}
+                  </span>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-zinc-200/60">
-                  <a
-                    href={`tel:${order.customerPhone}`}
-                    className="text-xs font-semibold text-rose-600 flex items-center space-x-1.5 hover:underline"
-                  >
-                    <Phone className="w-3.5 h-3.5" />
-                    <span>โทร: {order.customerPhone}</span>
-                  </a>
-
-                  {order.deliveryLatitude && order.deliveryLongitude && (
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLatitude},${order.deliveryLongitude}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs font-semibold text-zinc-700 flex items-center space-x-1 hover:text-rose-600"
-                    >
-                      <Navigation className="w-3.5 h-3.5" />
-                      <span>เปิด Google Maps</span>
-                    </a>
+                {/* Delivery Address & Note */}
+                <div className="bg-slate-50 rounded-xl p-3 space-y-1.5 text-xs text-slate-700">
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-4 h-4 text-[#06C755] flex-shrink-0 mt-0.5" />
+                    <p className="leading-relaxed">{order.deliveryAddress || 'จัดส่งตามพิกัดของลูกค้า'}</p>
+                  </div>
+                  {order.note && (
+                    <p className="text-[11px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded">
+                      โน้ต: {order.note}
+                    </p>
                   )}
                 </div>
+
+                {/* Items preview */}
+                <div className="text-xs text-slate-600 space-y-1">
+                  {order.items?.map((i: any, idx: number) => (
+                    <div key={idx} className="flex justify-between">
+                      <span className="truncate max-w-[220px]">
+                        {i.quantity}x {i.menuItem?.name || i.name}
+                      </span>
+                      <span className="font-semibold text-slate-900">{formatPrice(i.totalPrice || 0)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Rider Action Buttons */}
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+                  {/* Call Customer Button */}
+                  <a
+                    href={`tel:${order.customerPhone}`}
+                    className="flex items-center justify-center gap-1.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition-colors btn-tactile"
+                  >
+                    <Phone className="w-3.5 h-3.5 text-[#06C755]" />
+                    โทรหาลูกค้า
+                  </a>
+
+                  {/* Google Maps Shortcut */}
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLatitude || ''},${order.deliveryLongitude || ''}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-center gap-1.5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl transition-colors btn-tactile"
+                  >
+                    <Navigation className="w-3.5 h-3.5" />
+                    เปิด Google Maps
+                  </a>
+                </div>
+
+                {/* Delivery Progress CTA */}
+                {!isOut ? (
+                  <button
+                    onClick={() => startDeliveryMutation.mutate(order.id)}
+                    disabled={startDeliveryMutation.isPending}
+                    className="w-full py-3 bg-[#06C755] hover:bg-[#05A848] text-white font-bold text-xs rounded-xl shadow-md transition-colors btn-tactile flex items-center justify-center gap-1.5"
+                  >
+                    <Bike className="w-4 h-4" />
+                    <span>รับอาหารแล้ว (เริ่มออกเดินทาง)</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setConfirmingOrder(order)}
+                    className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-md transition-colors btn-tactile flex items-center justify-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>ส่งอาหารถึงมือลูกค้าแล้ว (เสร็จสิ้น)</span>
+                  </button>
+                )}
               </div>
-
-              {/* Order Items Preview */}
-              <div className="text-xs text-zinc-500 space-y-0.5">
-                {order.items?.map((item: any) => (
-                  <p key={item.id}>
-                    • {item.productName} x{item.quantity}
-                  </p>
-                ))}
-              </div>
-
-              {/* Rider Action Buttons */}
-              {order.orderStatus === 'READY' ? (
-                <button
-                  onClick={() => startDeliveryMutation.mutate(order.id)}
-                  disabled={startDeliveryMutation.isPending}
-                  className="w-full py-3.5 bg-zinc-900 text-white font-bold text-xs rounded-2xl shadow hover:bg-black active:scale-[0.98] transition flex items-center justify-center space-x-1.5 disabled:opacity-50"
-                >
-                  <Bike className="w-4 h-4" />
-                  <span>รับงาน & เริ่มออกส่ง (Start Delivery)</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => setConfirmingOrder(order)}
-                  className="w-full py-3.5 bg-emerald-600 text-white font-bold text-xs rounded-2xl shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 active:scale-[0.98] transition flex items-center justify-center space-x-1.5"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>จัดส่งถึงลูกค้าเรียบร้อย (Mark Delivered)</span>
-                </button>
-              )}
-            </div>
-          ))
-        )}
-
-        {!isLoading && deliveryOrders.length === 0 && (
-          <div className="py-16 text-center text-zinc-400 space-y-2 bg-white rounded-3xl border border-zinc-200 p-6">
-            <Package className="w-12 h-12 mx-auto text-zinc-300" />
-            <p className="text-sm font-bold text-zinc-800">ไม่มีงานรอจัดส่งในขณะนี้</p>
-            <p className="text-xs text-zinc-400">ออเดอร์ที่พร้อมส่งจะปรากฏที่นี่อัตโนมัติ</p>
-          </div>
+            );
+          })
         )}
       </div>
 
-      {/* Modal: Confirm Delivery with Photo Proof (Blueprint §29) */}
+      {/* 3. Confirm Delivery Modal with Photo Capture */}
       {confirmingOrder && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-xl border border-zinc-200">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-black text-zinc-900">ยืนยันการจัดส่ง</h2>
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-5 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="font-bold text-sm text-slate-900">ยืนยันการจัดส่งสำเร็จ</h3>
               <button
-                onClick={() => {
-                  setConfirmingOrder(null);
-                  setProofImage(null);
-                  setProofPreview(null);
-                }}
-                className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 hover:bg-zinc-200"
+                onClick={() => setConfirmingOrder(null)}
+                className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-zinc-600">
-              ออเดอร์: <span className="font-bold text-rose-600">#{confirmingOrder.orderNo}</span> ({confirmingOrder.customerName})
+            <p className="text-xs text-slate-600">
+              คุณได้ส่งมอบอาหารใหักับ <strong>{confirmingOrder.customerName}</strong> เรียบร้อยแล้ว
             </p>
 
-            {/* Photo Proof Input */}
-            <div>
-              <label className="text-xs font-bold text-zinc-700 block mb-1.5">
-                📸 รูปถ่ายหลักฐานการส่งมอบ (Delivery Proof)
-              </label>
+            <input
+              type="text"
+              value={deliveryNote}
+              onChange={(e) => setDeliveryNote(e.target.value)}
+              placeholder="หมายเหตุ (เช่น วางไว้ที่โต๊ะล็อบบี้)"
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#06C755]"
+            />
 
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-              />
-
-              {proofPreview ? (
-                <div className="relative rounded-2xl overflow-hidden border border-zinc-200 aspect-video bg-black/5">
-                  <img src={proofPreview} alt="Proof" className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProofImage(null);
-                      setProofPreview(null);
-                    }}
-                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
+            <button
+              onClick={() =>
+                completeDeliveryMutation.mutate({
+                  orderId: confirmingOrder.id,
+                  note: deliveryNote,
+                })
+              }
+              disabled={completeDeliveryMutation.isPending}
+              className="w-full py-3.5 bg-[#06C755] hover:bg-[#05A848] text-white font-bold text-xs rounded-xl shadow-md transition-colors btn-tactile disabled:opacity-50 flex items-center justify-center gap-1.5"
+            >
+              {completeDeliveryMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-6 border-2 border-dashed border-zinc-300 hover:border-zinc-400 rounded-2xl flex flex-col items-center justify-center space-y-1.5 text-zinc-500 hover:bg-zinc-50 transition"
-                >
-                  <Camera className="w-6 h-6 text-zinc-400" />
-                  <span className="text-xs font-bold text-zinc-700">ถ่ายรูปหรือเลือกภาพหลักฐาน</span>
-                  <span className="text-[10px] text-zinc-400">รูปอาหารที่วางส่งหรือลูกค้าตอนรับ</span>
-                </button>
+                <CheckCircle2 className="w-4 h-4" />
               )}
-            </div>
-
-            {/* Note */}
-            <div>
-              <label className="text-xs font-bold text-zinc-700 block mb-1">
-                หมายเหตุเพิ่มเติม (ถ้ามี)
-              </label>
-              <input
-                type="text"
-                value={deliveryNote}
-                onChange={(e) => setDeliveryNote(e.target.value)}
-                placeholder="เช่น วางไว้ที่โต๊ะหน้าบ้านชั้น 1"
-                className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-
-            {/* Actions */}
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirmingOrder(null);
-                  setProofImage(null);
-                  setProofPreview(null);
-                }}
-                className="flex-1 py-3 bg-zinc-100 text-zinc-700 font-bold text-xs rounded-xl hover:bg-zinc-200"
-              >
-                ยกเลิก
-              </button>
-              <button
-                type="button"
-                disabled={completeDeliveryMutation.isPending}
-                onClick={() =>
-                  completeDeliveryMutation.mutate({
-                    orderId: confirmingOrder.id,
-                    file: proofImage,
-                    note: deliveryNote,
-                  })
-                }
-                className="flex-1 py-3 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700 shadow-md shadow-emerald-600/30 flex items-center justify-center space-x-1.5 disabled:opacity-50"
-              >
-                {completeDeliveryMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>ยืนยันจัดส่งสำเร็จ</span>
-                  </>
-                )}
-              </button>
-            </div>
+              <span>ยืนยันปิดงาน</span>
+            </button>
           </div>
         </div>
       )}

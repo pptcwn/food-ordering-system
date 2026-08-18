@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
@@ -16,18 +17,20 @@ import {
   Volume2,
   VolumeX,
   RefreshCw,
-  ToggleLeft,
-  ToggleRight,
   Flame,
   AlertCircle,
+  ArrowLeft,
+  X,
+  Utensils,
+  Check,
 } from 'lucide-react';
 
 export default function KitchenDashboardPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [showSoldOutModal, setShowSoldOutModal] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Fetch Branches
   const { data: branches = [] } = useQuery<any[]>({
@@ -35,7 +38,6 @@ export default function KitchenDashboardPage() {
     queryFn: () => apiClient.get('/branches'),
   });
 
-  // Default to first branch
   useEffect(() => {
     if (branches.length > 0 && !selectedBranchId) {
       setSelectedBranchId(branches[0].id);
@@ -46,7 +48,7 @@ export default function KitchenDashboardPage() {
   const { data: orders = [], isLoading, refetch } = useQuery<any[]>({
     queryKey: ['kitchen-orders', selectedBranchId],
     queryFn: () => apiClient.get(`/orders/admin/all?branchId=${selectedBranchId}`),
-    refetchInterval: 5000,
+    refetchInterval: 4000,
     enabled: !!selectedBranchId,
   });
 
@@ -63,9 +65,8 @@ export default function KitchenDashboardPage() {
     const socket = getSocket();
     socket.emit('join_kitchen', { branchId: selectedBranchId });
 
-    socket.on(WS_EVENTS.KITCHEN_NEW_ORDER, (payload: any) => {
+    socket.on(WS_EVENTS.KITCHEN_NEW_ORDER, () => {
       queryClient.invalidateQueries({ queryKey: ['kitchen-orders'] });
-      // Play ding audio alert
       if (audioEnabled) {
         try {
           const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
@@ -98,36 +99,51 @@ export default function KitchenDashboardPage() {
     mutationFn: ({ productId, isAvailable }: { productId: string; isAvailable: boolean }) =>
       apiClient.patch(`/admin/products/${productId}/availability`, { isAvailable }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-menu'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-menu', selectedBranchId] });
       queryClient.invalidateQueries({ queryKey: ['menu'] });
     },
   });
 
-  // Filter orders by kitchen stages
-  const newOrders = orders.filter((o: any) => o.orderStatus === 'PAID' || o.orderStatus === 'CONFIRMED');
-  const preparingOrders = orders.filter((o: any) => o.orderStatus === 'PREPARING');
+  const activeKitchenOrders = orders.filter(
+    (o: any) =>
+      o.orderStatus === 'PAID' ||
+      o.orderStatus === 'CONFIRMED' ||
+      o.orderStatus === 'PREPARING',
+  );
+
   const readyOrders = orders.filter((o: any) => o.orderStatus === 'READY');
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-6 flex flex-col font-sans">
-      {/* Top Navbar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-zinc-800">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-2xl bg-rose-600 flex items-center justify-center text-white shadow-lg shadow-rose-600/40">
-            <ChefHat className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-white tracking-wide">Kitchen Display System (KDS)</h1>
-            <p className="text-xs text-zinc-400">หน้าจอแสดงคิวอาหาร & ควบคุมสินค้าห้องครัว</p>
+    <div className="flex-1 flex flex-col p-4 md:p-6 pb-20 bg-slate-900 text-slate-100 min-h-screen">
+      {/* 1. Header with Audio toggle & Quick Branch Switcher */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-800">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.push('/admin')}
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors btn-tactile"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold">
+              <ChefHat className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                <span>หน้าจอห้องครัว (Kitchen KDS)</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              </h1>
+              <p className="text-xs text-slate-400">ระบบคิวทำอาหารแบบ Real-time พร้อมเสียงแจ้งเตือน</p>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
-          {/* Branch Selector */}
+        {/* Action Controls */}
+        <div className="flex items-center gap-2 flex-wrap">
           <select
             value={selectedBranchId}
             onChange={(e) => setSelectedBranchId(e.target.value)}
-            className="bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-500"
+            className="bg-slate-800 border border-slate-700 text-white text-xs font-bold rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#06C755]"
           >
             {branches.map((b: any) => (
               <option key={b.id} value={b.id}>
@@ -136,267 +152,166 @@ export default function KitchenDashboardPage() {
             ))}
           </select>
 
-          {/* Sound Toggle */}
           <button
             onClick={() => setAudioEnabled(!audioEnabled)}
-            className={`p-2.5 rounded-xl border transition ${
+            className={`p-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-colors ${
               audioEnabled
-                ? 'bg-rose-600/20 border-rose-600 text-rose-400'
-                : 'bg-zinc-900 border-zinc-700 text-zinc-500'
+                ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                : 'bg-slate-800 border-slate-700 text-slate-400'
             }`}
-            title="Toggle Sound"
+            title="เปิด/ปิดเสียงแจ้งเตือนออเดอร์ใหม่"
           >
             {audioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            <span>{audioEnabled ? 'เสียงเปิด' : 'เสียงปิด'}</span>
           </button>
 
-          {/* Manage Sold Out Button */}
           <button
             onClick={() => setShowSoldOutModal(true)}
-            className="px-3.5 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-semibold rounded-xl transition flex items-center space-x-2"
+            className="px-3.5 py-2 bg-rose-600/20 border border-rose-500/40 hover:bg-rose-600/30 text-rose-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors btn-tactile"
           >
-            <Flame className="w-4 h-4 text-orange-400" />
-            <span>จัดการสินค้าหมด (Sold Out)</span>
+            <Flame className="w-3.5 h-3.5 text-rose-400" />
+            <span>จัดการของหมด</span>
           </button>
         </div>
       </div>
 
-      {/* Kanban Board Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-6 flex-1 items-start">
-        {/* Column 1: New / Paid Orders */}
-        <div className="bg-zinc-900/70 border border-zinc-800 rounded-3xl p-4 flex flex-col space-y-3 min-h-[500px]">
-          <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
-            <span className="text-sm font-bold text-amber-400 flex items-center space-x-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
-              <span>ต้องทำ / จ่ายแล้ว ({newOrders.length})</span>
-            </span>
+      {/* 2. Live Order Columns */}
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {isLoading ? (
+          <div className="col-span-full py-24 text-center text-slate-400">
+            กำลังโหลดคิวทำอาหาร...
           </div>
+        ) : activeKitchenOrders.length === 0 ? (
+          <div className="col-span-full py-24 text-center bg-slate-800/40 border border-slate-800 rounded-3xl p-8">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto mb-3">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+            <h3 className="text-base font-bold text-white mb-1">ยังไม่มีออเดอร์ในคิว</h3>
+            <p className="text-xs text-slate-400">เมื่อมีลูกค้าสั่งอาหารและชำระเงิน รายการจะเด้งเข้าหน้านี้ทันที</p>
+          </div>
+        ) : (
+          activeKitchenOrders.map((order: any) => {
+            const isPreparing = order.orderStatus === 'PREPARING';
 
-          <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-220px)]">
-            {newOrders.map((order: any) => (
+            return (
               <div
                 key={order.id}
-                className="p-4 bg-zinc-900 border border-amber-500/40 rounded-2xl space-y-3 shadow-lg hover:border-amber-400 transition"
+                className={`bg-slate-800 rounded-2xl border flex flex-col justify-between overflow-hidden shadow-lg transition-all ${
+                  isPreparing ? 'border-emerald-500/60 ring-2 ring-emerald-500/20' : 'border-amber-500/60'
+                }`}
               >
-                <div className="flex justify-between items-start">
+                {/* Card Header */}
+                <div
+                  className={`p-3.5 flex items-center justify-between text-white ${
+                    isPreparing ? 'bg-emerald-600' : 'bg-amber-600'
+                  }`}
+                >
                   <div>
-                    <span className="text-xs font-mono font-bold text-amber-400">#{order.orderNo}</span>
-                    <p className="text-xs text-zinc-300 font-medium mt-0.5">
-                      {order.customerName} ({order.orderType})
+                    <span className="text-xs font-mono font-black tracking-wider uppercase">
+                      #{order.orderNumber || order.id.slice(0, 6)}
+                    </span>
+                    <p className="text-xs font-bold mt-0.5">
+                      {order.customerName} ({order.orderType === 'DELIVERY' ? '🛵 จัดส่ง' : '🏪 รับที่ร้าน'})
                     </p>
                   </div>
-                  <span className="text-[11px] px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded font-semibold">
-                    {order.orderStatus}
+                  <span className="text-[11px] font-extrabold bg-black/30 backdrop-blur-xs px-2.5 py-1 rounded-full">
+                    {isPreparing ? 'กำลังปรุงอาหาร 🍳' : 'ออเดอร์ใหม่ ⚡'}
                   </span>
                 </div>
 
-                {/* Items */}
-                <div className="bg-zinc-950/60 p-2.5 rounded-xl space-y-1.5 text-xs divide-y divide-zinc-800">
-                  {order.items?.map((item: any) => (
-                    <div key={item.id} className="pt-1 first:pt-0">
-                      <div className="flex justify-between font-bold text-zinc-100">
-                        <span>{item.productName}</span>
-                        <span className="text-amber-400">x{item.quantity}</span>
+                {/* Items List */}
+                <div className="p-4 space-y-2.5 flex-1 divide-y divide-slate-700/60">
+                  {order.items?.map((item: any, idx: number) => (
+                    <div key={idx} className="pt-2 first:pt-0 flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2">
+                        <span className="w-6 h-6 rounded bg-slate-700 text-amber-300 font-extrabold text-xs flex items-center justify-center flex-shrink-0">
+                          {item.quantity}x
+                        </span>
+                        <div>
+                          <h4 className="text-sm font-bold text-white">
+                            {item.menuItem?.name || item.name}
+                          </h4>
+                          {item.specialNote && (
+                            <p className="text-xs text-amber-300 font-bold bg-amber-500/20 px-2 py-0.5 rounded mt-1">
+                              ⚠️ โน้ต: {item.specialNote}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      {item.variantName && (
-                        <p className="text-[11px] text-zinc-400">{item.variantName}</p>
-                      )}
-                      {item.modifiers?.length > 0 && (
-                        <p className="text-[11px] text-zinc-400">
-                          {item.modifiers.map((m: any) => m.modifierName).join(', ')}
-                        </p>
-                      )}
-                      {item.specialNote && (
-                        <p className="text-[11px] text-rose-400 italic">"{item.specialNote}"</p>
-                      )}
                     </div>
                   ))}
-                </div>
 
-                <button
-                  onClick={() =>
-                    updateStatusMutation.mutate({ orderId: order.id, status: OrderStatus.PREPARING })
-                  }
-                  className="w-full py-3 bg-amber-500 text-zinc-950 font-bold text-xs rounded-xl shadow hover:bg-amber-400 active:scale-[0.98] transition flex items-center justify-center space-x-1.5"
-                >
-                  <ChefHat className="w-4 h-4" />
-                  <span>เริ่มทำอาหาร (Start Cooking)</span>
-                </button>
-              </div>
-            ))}
-            {newOrders.length === 0 && (
-              <p className="text-xs text-zinc-600 text-center py-12">ไม่มีออเดอร์ใหม่</p>
-            )}
-          </div>
-        </div>
-
-        {/* Column 2: Preparing */}
-        <div className="bg-zinc-900/70 border border-zinc-800 rounded-3xl p-4 flex flex-col space-y-3 min-h-[500px]">
-          <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
-            <span className="text-sm font-bold text-rose-400 flex items-center space-x-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
-              <span>กำลังปรุงอาหาร ({preparingOrders.length})</span>
-            </span>
-          </div>
-
-          <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-220px)]">
-            {preparingOrders.map((order: any) => (
-              <div
-                key={order.id}
-                className="p-4 bg-zinc-900 border border-rose-500/50 rounded-2xl space-y-3 shadow-lg hover:border-rose-400 transition"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="text-xs font-mono font-bold text-rose-400">#{order.orderNo}</span>
-                    <p className="text-xs text-zinc-300 font-medium mt-0.5">{order.customerName}</p>
-                  </div>
-                  <span className="text-[11px] px-2 py-0.5 bg-rose-500/20 text-rose-300 rounded font-semibold">
-                    กำลังทำ 🍳
-                  </span>
-                </div>
-
-                {/* Items */}
-                <div className="bg-zinc-950/60 p-2.5 rounded-xl space-y-1.5 text-xs divide-y divide-zinc-800">
-                  {order.items?.map((item: any) => (
-                    <div key={item.id} className="pt-1 first:pt-0">
-                      <div className="flex justify-between font-bold text-zinc-100">
-                        <span>{item.productName}</span>
-                        <span className="text-rose-400">x{item.quantity}</span>
-                      </div>
-                      {item.variantName && (
-                        <p className="text-[11px] text-zinc-400">{item.variantName}</p>
-                      )}
-                      {item.modifiers?.length > 0 && (
-                        <p className="text-[11px] text-zinc-400">
-                          {item.modifiers.map((m: any) => m.modifierName).join(', ')}
-                        </p>
-                      )}
-                      {item.specialNote && (
-                        <p className="text-[11px] text-rose-400 italic">"{item.specialNote}"</p>
-                      )}
+                  {order.note && (
+                    <div className="pt-2 mt-2 bg-slate-900/50 p-2.5 rounded-xl border border-slate-700">
+                      <span className="text-[10px] text-slate-400 block font-bold">หมายเหตุทั้งออเดอร์:</span>
+                      <p className="text-xs text-amber-200">{order.note}</p>
                     </div>
-                  ))}
-                </div>
-
-                <button
-                  onClick={() =>
-                    updateStatusMutation.mutate({ orderId: order.id, status: OrderStatus.READY })
-                  }
-                  className="w-full py-3 bg-rose-600 text-white font-bold text-xs rounded-xl shadow hover:bg-rose-500 active:scale-[0.98] transition flex items-center justify-center space-x-1.5"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>ปรุงเสร็จแล้ว / พร้อมส่ง (Mark Ready)</span>
-                </button>
-              </div>
-            ))}
-            {preparingOrders.length === 0 && (
-              <p className="text-xs text-zinc-600 text-center py-12">ไม่มีรายการกำลังปรุง</p>
-            )}
-          </div>
-        </div>
-
-        {/* Column 3: Ready for Delivery / Pickup */}
-        <div className="bg-zinc-900/70 border border-zinc-800 rounded-3xl p-4 flex flex-col space-y-3 min-h-[500px]">
-          <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
-            <span className="text-sm font-bold text-emerald-400 flex items-center space-x-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-              <span>พร้อมจัดส่ง / รอรับ ({readyOrders.length})</span>
-            </span>
-          </div>
-
-          <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-220px)]">
-            {readyOrders.map((order: any) => (
-              <div
-                key={order.id}
-                className="p-4 bg-zinc-900 border border-emerald-500/40 rounded-2xl space-y-3 shadow-lg"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="text-xs font-mono font-bold text-emerald-400">#{order.orderNo}</span>
-                    <p className="text-xs text-zinc-300 font-medium mt-0.5">
-                      {order.customerName} ({order.orderType})
-                    </p>
-                  </div>
-                  <span className="text-[11px] px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded font-semibold">
-                    พร้อมส่ง 📦
-                  </span>
-                </div>
-
-                <div className="text-xs text-zinc-400">
-                  {order.orderType === 'DELIVERY' ? (
-                    <p className="truncate">จุดส่ง: {order.deliveryAddressLine}</p>
-                  ) : (
-                    <p>ลูกค้ารับเองที่หน้าร้าน</p>
                   )}
                 </div>
 
-                {order.orderType === 'DELIVERY' ? (
-                  <button
-                    onClick={() =>
-                      updateStatusMutation.mutate({
-                        orderId: order.id,
-                        status: OrderStatus.OUT_FOR_DELIVERY,
-                      })
-                    }
-                    className="w-full py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-500 transition flex items-center justify-center space-x-1.5"
-                  >
-                    <Bike className="w-4 h-4" />
-                    <span>ไรเดอร์ออกส่ง (Out For Delivery)</span>
-                  </button>
-                ) : (
-                  <button
-                    onClick={() =>
-                      updateStatusMutation.mutate({
-                        orderId: order.id,
-                        status: OrderStatus.DELIVERED,
-                      })
-                    }
-                    className="w-full py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-500 transition flex items-center justify-center space-x-1.5"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>ลูกค้ารับอาหารแล้ว</span>
-                  </button>
-                )}
+                {/* Card Action Footer */}
+                <div className="p-3 bg-slate-900/80 border-t border-slate-700/80 flex gap-2">
+                  {!isPreparing ? (
+                    <button
+                      onClick={() =>
+                        updateStatusMutation.mutate({
+                          orderId: order.id,
+                          status: OrderStatus.PREPARING,
+                        })
+                      }
+                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md transition-colors btn-tactile flex items-center justify-center gap-1.5"
+                    >
+                      <span>รับเข้าครัว (เริ่มปรุง)</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() =>
+                        updateStatusMutation.mutate({
+                          orderId: order.id,
+                          status: OrderStatus.READY,
+                        })
+                      }
+                      className="w-full py-3 bg-[#06C755] hover:bg-[#05A848] text-white font-extrabold text-xs rounded-xl shadow-md transition-colors btn-tactile flex items-center justify-center gap-1.5"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>ปรุงเสร็จแล้ว (พร้อมส่ง)</span>
+                    </button>
+                  )}
+                </div>
               </div>
-            ))}
-            {readyOrders.length === 0 && (
-              <p className="text-xs text-zinc-600 text-center py-12">ไม่มีออเดอร์รอจัดส่ง</p>
-            )}
-          </div>
-        </div>
+            );
+          })
+        )}
       </div>
 
-      {/* Realtime Sold-Out Toggle Modal */}
+      {/* 3. Sold Out Quick Toggle Modal */}
       {showSoldOutModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-zinc-900 border border-zinc-800 rounded-3xl p-5 max-h-[80vh] flex flex-col space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-              <div className="flex items-center space-x-2">
-                <Flame className="w-5 h-5 text-orange-400" />
-                <h3 className="text-base font-bold text-white">จัดการสินค้าหมด (Sold-Out Control)</h3>
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-slate-800 text-white rounded-3xl shadow-2xl p-5 space-y-4 max-h-[85vh] flex flex-col">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-700">
+              <div className="flex items-center gap-2">
+                <Flame className="w-5 h-5 text-rose-400" />
+                <h3 className="font-bold text-base">เปิด-ปิดของหมดในครัว (Sold-out)</h3>
               </div>
               <button
                 onClick={() => setShowSoldOutModal(false)}
-                className="text-xs text-zinc-400 hover:text-white px-2 py-1 bg-zinc-800 rounded-lg"
+                className="w-8 h-8 rounded-full bg-slate-700 text-slate-400 flex items-center justify-center hover:text-white"
               >
-                ปิด
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="overflow-y-auto space-y-4 flex-1 divide-y divide-zinc-800">
+            <div className="overflow-y-auto space-y-3 flex-1 pr-1">
               {menuCategories.map((cat: any) => (
-                <div key={cat.id} className="pt-3 first:pt-0 space-y-2">
-                  <span className="text-xs font-bold text-zinc-400 uppercase">{cat.name}</span>
-                  <div className="space-y-1.5">
+                <div key={cat.id} className="space-y-1.5">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">{cat.name}</h4>
+                  <div className="space-y-1">
                     {cat.products?.map((p: any) => (
                       <div
                         key={p.id}
-                        className="p-3 bg-zinc-950 rounded-xl flex items-center justify-between border border-zinc-800/80"
+                        className="p-3 bg-slate-900/60 rounded-xl flex items-center justify-between border border-slate-700/60"
                       >
-                        <div>
-                          <p className="text-sm font-semibold text-zinc-100">{p.name}</p>
-                          <span className="text-xs text-rose-400">{formatPrice(p.basePrice)}</span>
-                        </div>
-
+                        <span className="text-xs font-bold text-slate-200">{p.name}</span>
                         <button
                           onClick={() =>
                             toggleAvailabilityMutation.mutate({
@@ -404,23 +319,13 @@ export default function KitchenDashboardPage() {
                               isAvailable: !p.isAvailable,
                             })
                           }
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 ${
+                          className={`text-xs font-bold px-3 py-1 rounded-full transition-colors ${
                             p.isAvailable
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                              : 'bg-red-500/20 text-red-400 border border-red-500/40'
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-rose-500/20 hover:text-rose-400'
+                              : 'bg-rose-500/20 text-rose-400 border border-rose-500/40 hover:bg-emerald-500/20 hover:text-emerald-400'
                           }`}
                         >
-                          {p.isAvailable ? (
-                            <>
-                              <ToggleRight className="w-4 h-4" />
-                              <span>เปิดขายปกติ</span>
-                            </>
-                          ) : (
-                            <>
-                              <ToggleLeft className="w-4 h-4" />
-                              <span>สินค้าหมด (Sold Out)</span>
-                            </>
-                          )}
+                          {p.isAvailable ? '● พร้อมขาย' : '○ สินค้าหมด'}
                         </button>
                       </div>
                     ))}
