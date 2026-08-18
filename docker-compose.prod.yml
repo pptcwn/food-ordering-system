@@ -61,6 +61,14 @@ services:
         condition: service_healthy
     env_file:
       - .env
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres123}@postgres:5432/${POSTGRES_DB:-food_ordering_db}?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_URL=redis://redis:6379
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
     ports:
       - "4000:4000"
 
@@ -77,6 +85,14 @@ services:
         condition: service_healthy
     env_file:
       - .env
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres123}@postgres:5432/${POSTGRES_DB:-food_ordering_db}?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_URL=redis://redis:6379
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
 
   web:
     build:
@@ -88,12 +104,15 @@ services:
       - api
     env_file:
       - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - NEXT_PUBLIC_API_URL=http://34.126.172.168:4000/api
+      - NEXT_PUBLIC_WS_URL=http://34.126.172.168:4000
     ports:
       - "3000:3000"
 
-  # Blueprint §62, §67 — Uptime monitoring
-  # Access at http://<server>:3001 after first run to set up checks for:
-  # Web (3000), API (4000), PostgreSQL, Redis, MinIO (9000), Worker health
   uptime-kuma:
     image: louislam/uptime-kuma:1
     container_name: food_ordering_uptime_kuma

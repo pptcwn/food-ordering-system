@@ -56,7 +56,7 @@ jobs:
           script: |
             echo "🚀 Starting Automated Deployment on GCP VM..."
             
-            # 1. Install cloud-guest-utils and Expand Filesystem to full 50GB
+            # 1. Expand Partition to full 50GB
             sudo apt-get update -y
             sudo apt-get install -y cloud-guest-utils
             sudo growpart /dev/sda 1 || sudo growpart /dev/vda 1 || sudo growpart /dev/nvme0n1 1 || true
@@ -83,23 +83,18 @@ jobs:
               sed -i "s|NEXT_PUBLIC_WS_URL=.*|NEXT_PUBLIC_WS_URL=http://${{ secrets.GCP_VM_HOST }}:4000|g" .env
             fi
             
-            # 5. Build and start containers
-            docker compose -f docker-compose.prod.yml up -d postgres redis minio uptime-kuma
-            sleep 5
-            docker compose -f docker-compose.prod.yml build api
-            docker compose -f docker-compose.prod.yml up -d api
-            sleep 3
-            docker compose -f docker-compose.prod.yml build worker
-            docker compose -f docker-compose.prod.yml up -d worker
-            sleep 3
-            docker compose -f docker-compose.prod.yml build web
-            docker compose -f docker-compose.prod.yml up -d web
+            # 5. Build and start all containers
+            docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
             
             # 6. Run database migrations
-            sleep 6
+            echo "⏳ Waiting for PostgreSQL & API to stabilize..."
+            sleep 10
             docker compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy || true
             
             # 7. Clean build cache
             docker builder prune -f || true
+            
+            # 8. Check running containers
+            docker compose -f docker-compose.prod.yml ps
             
             echo "✅ Deployment finished successfully!"
