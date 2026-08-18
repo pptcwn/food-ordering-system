@@ -20,6 +20,7 @@ import {
   ChevronRight,
   BarChart3,
   Calendar,
+  Utensils,
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -97,69 +98,85 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Quick Navigation Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <button
+          onClick={() => router.push('/admin/menu')}
+          className="p-3.5 bg-white border border-emerald-200 hover:border-[#06C755] rounded-2xl flex items-center justify-between shadow-xs hover:shadow-sm transition text-left"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-[#06C755] flex items-center justify-center">
+              <Utensils className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-900">จัดการเมนู & รูปภาพ</p>
+              <p className="text-[10px] text-slate-400">ตกแต่งหน้าร้าน & แก้ไข</p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-slate-400" />
+        </button>
+
         <button
           onClick={() => router.push('/admin/promotions')}
-          className="p-3.5 bg-white border border-zinc-200 rounded-2xl flex items-center justify-between hover:border-rose-300 hover:shadow-sm transition text-left"
+          className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-rose-300 hover:shadow-xs transition text-left"
         >
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
               <Tag className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-xs font-bold text-zinc-900">โปรโมชั่น & คูปอง</p>
-              <p className="text-[10px] text-zinc-400">สร้างแคมเปญ & รหัส</p>
+              <p className="text-xs font-bold text-slate-900">โปรโมชั่น & คูปอง</p>
+              <p className="text-[10px] text-slate-400">สร้างแคมเปญ & รหัส</p>
             </div>
           </div>
-          <ChevronRight className="w-4 h-4 text-zinc-400" />
+          <ChevronRight className="w-4 h-4 text-slate-400" />
         </button>
 
         <button
           onClick={() => router.push('/admin/payments')}
-          className="p-3.5 bg-white border border-zinc-200 rounded-2xl flex items-center justify-between hover:border-blue-300 hover:shadow-sm transition text-left"
+          className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-blue-300 hover:shadow-xs transition text-left"
         >
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
               <CreditCard className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-xs font-bold text-zinc-900">การชำระเงิน</p>
-              <p className="text-[10px] text-zinc-400">ตรวจสอบสลิป Slip2Go</p>
+              <p className="text-xs font-bold text-slate-900">การชำระเงิน</p>
+              <p className="text-[10px] text-slate-400">ตรวจสอบสลิป Slip2Go</p>
             </div>
           </div>
-          <ChevronRight className="w-4 h-4 text-zinc-400" />
+          <ChevronRight className="w-4 h-4 text-slate-400" />
         </button>
 
         <button
           onClick={() => router.push('/admin/customers')}
-          className="p-3.5 bg-white border border-zinc-200 rounded-2xl flex items-center justify-between hover:border-amber-300 hover:shadow-sm transition text-left"
+          className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-amber-300 hover:shadow-xs transition text-left"
         >
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
               <Users className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-xs font-bold text-zinc-900">ฐานลูกค้า</p>
-              <p className="text-[10px] text-zinc-400">บัญชี LINE & ที่อยู่</p>
+              <p className="text-xs font-bold text-slate-900">ฐานลูกค้า</p>
+              <p className="text-[10px] text-slate-400">บัญชี LINE & ที่อยู่</p>
             </div>
           </div>
-          <ChevronRight className="w-4 h-4 text-zinc-400" />
+          <ChevronRight className="w-4 h-4 text-slate-400" />
         </button>
 
         <button
           onClick={() => router.push('/kitchen')}
-          className="p-3.5 bg-white border border-zinc-200 rounded-2xl flex items-center justify-between hover:border-purple-300 hover:shadow-sm transition text-left"
+          className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-purple-300 hover:shadow-xs transition text-left"
         >
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
               <Store className="w-4 h-4" />
             </div>
             <div>
-              <p className="text-xs font-bold text-zinc-900">Kitchen KDS</p>
-              <p className="text-[10px] text-zinc-400">หน้าจอครัว & Sold-out</p>
+              <p className="text-xs font-bold text-slate-900">Kitchen KDS</p>
+              <p className="text-[10px] text-slate-400">หน้าจอครัว & ออเดอร์</p>
             </div>
           </div>
-          <ChevronRight className="w-4 h-4 text-zinc-400" />
+          <ChevronRight className="w-4 h-4 text-slate-400" />
         </button>
       </div>
 
