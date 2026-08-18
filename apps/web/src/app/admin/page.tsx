@@ -62,6 +62,27 @@ export default function AdminDashboardPage() {
     window.open(`${baseUrl}/admin/reports/sales/export?branchId=${selectedBranchId || ''}`, '_blank');
   };
 
+  const [adminUser, setAdminUser] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('admin_user');
+      if (stored) {
+        try {
+          setAdminUser(JSON.parse(stored));
+        } catch {}
+      }
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('admin_user');
+    setAdminUser(null);
+    router.push('/admin/login');
+  };
+
   const maxDailyRevenue = Math.max(...salesTrends.map((t: any) => t.revenue || 0), 100);
 
   return (
@@ -74,10 +95,32 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="flex items-center space-x-2 flex-wrap gap-2">
+          {adminUser ? (
+            <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs">
+              <div className="w-6 h-6 rounded-full bg-[#EAF8F1] text-[#00A86B] font-black text-[10px] flex items-center justify-center">
+                A
+              </div>
+              <span className="text-xs font-bold text-slate-800">{adminUser.name || 'Admin'}</span>
+              <button
+                onClick={handleLogout}
+                className="text-[11px] text-rose-600 hover:underline font-bold ml-1 pl-1 border-l border-slate-200"
+              >
+                ออกจากระบบ
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => router.push('/admin/login')}
+              className="px-3.5 py-2 bg-[#00A86B] hover:bg-[#00925D] text-white rounded-xl text-xs font-bold shadow-sm transition"
+            >
+              เข้าสู่ระบบ (Sign In)
+            </button>
+          )}
+
           <select
             value={selectedBranchId}
             onChange={(e) => setSelectedBranchId(e.target.value)}
-            className="bg-white border border-zinc-300 text-xs font-semibold text-zinc-800 rounded-xl px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+            className="bg-white border border-zinc-300 text-xs font-semibold text-zinc-800 rounded-xl px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#00A86B]"
           >
             <option value="">ทุกสาขา (All Branches)</option>
             {branches.map((b: any) => (

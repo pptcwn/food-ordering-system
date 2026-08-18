@@ -115,18 +115,44 @@ export class AuthService {
    * Admin / Staff Login with Email & Password
    */
   async loginAdmin(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({
+    let user = await this.prisma.user.findUnique({
       where: { email },
       include: { staff: true },
     });
 
-    if (!user || !user.passwordHash || !user.isActive) {
-      throw new UnauthorizedException('Invalid email or password');
+    // Auto-bootstrap initial Super Admin account if email matches default
+    if (!user && email === 'admin@foodordering.com') {
+      const hash = await bcrypt.hash(password || 'admin123', 10);
+      user = await this.prisma.user.create({
+        data: {
+          email: 'admin@foodordering.com',
+          name: 'System Super Admin',
+          phone: '0812345678',
+          role: UserRole.SUPER_ADMIN,
+          passwordHash: hash,
+          isActive: true,
+        },
+        include: { staff: true },
+      });
     }
 
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!isMatch) {
-      throw new UnauthorizedException('Invalid email or password');
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+    }
+
+    // If user has no passwordHash yet (seeded without hash)
+    if (!user.passwordHash) {
+      const hash = await bcrypt.hash(password, 10);
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash: hash },
+        include: { staff: true },
+      });
+    } else {
+      const isMatch = await bcrypt.compare(password, user.passwordHash);
+      if (!isMatch) {
+        throw new UnauthorizedException('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+      }
     }
 
     const tokens = this.generateTokens(user.id, user.role, undefined, user.email || undefined);
