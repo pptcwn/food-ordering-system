@@ -1,17 +1,32 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+function getApiBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    // 1. If explicit non-localhost NEXT_PUBLIC_API_URL is provided
+    const envUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (envUrl && !envUrl.includes('localhost')) {
+      return envUrl;
+    }
+    // 2. Dynamic discovery: derive API port 4000 from current browser window.location
+    const protocol = window.location.protocol;
+    const hostname = window.location.hostname;
+    return `${protocol}//${hostname}:4000/api`;
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+}
 
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Attach JWT token from localStorage if available
+// Dynamic baseURL interceptor for every request
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
+    config.baseURL = getApiBaseUrl();
+
     const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
