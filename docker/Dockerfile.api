@@ -1,9 +1,8 @@
-FROM node:20-alpine AS base
+FROM node:20-alpine
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 
-FROM base AS builder
 WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
 COPY packages ./packages
@@ -17,15 +16,5 @@ RUN pnpm --filter @food-ordering/database build
 RUN pnpm --filter @food-ordering/validation build
 RUN pnpm --filter @food-ordering/api build
 
-FROM base AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/pnpm-workspace.yaml ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
-
 EXPOSE 4000
-CMD ["node", "apps/api/dist/main.js"]
+CMD ["pnpm", "--filter", "@food-ordering/api", "start:prod"]
