@@ -4,7 +4,10 @@ let socket: Socket | null = null;
 
 export function getSocket(): Socket {
   if (!socket && typeof window !== 'undefined') {
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000';
+    const socketUrl =
+      process.env.NEXT_PUBLIC_WS_URL ||
+      process.env.NEXT_PUBLIC_SOCKET_URL ||
+      `${window.location.protocol}//${window.location.hostname}:4000`;
     socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 10,

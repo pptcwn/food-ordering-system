@@ -42,6 +42,8 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin123}
+      MINIO_BROWSER_REDIRECT_URL: "http://34.126.172.168:9001"
+      MINIO_SERVER_URL: "http://34.126.172.168:9000"
     ports:
       - "9000:9000"
       - "9001:9001"
