@@ -10,7 +10,11 @@ COPY packages ./packages
 COPY apps/api ./apps/api
 
 RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @food-ordering/config build
+RUN pnpm --filter @food-ordering/types build
 RUN pnpm --filter @food-ordering/database db:generate
+RUN pnpm --filter @food-ordering/database build
+RUN pnpm --filter @food-ordering/validation build
 RUN pnpm --filter @food-ordering/api build
 
 FROM base AS runner
