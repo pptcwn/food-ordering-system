@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { apiClient } from '@/lib/api';
+import BottomNav from '@/components/BottomNav';
 import {
   User,
   Phone,
@@ -12,9 +13,11 @@ import {
   Store,
   Navigation,
   CheckCircle2,
-  ChevronRight,
+  ArrowRight,
   AlertCircle,
   Sparkles,
+  ShieldCheck,
+  Check,
 } from 'lucide-react';
 
 export default function OnboardingPage() {
@@ -59,7 +62,6 @@ export default function OnboardingPage() {
     fetchNearest();
   }, [lat, lng, setActiveBranch]);
 
-  // Use browser GPS location
   const handleGetCurrentLocation = () => {
     if (!navigator.geolocation) {
       setErrorMsg('อุปกรณ์ของคุณไม่รองรับการระบุตำแหน่ง GPS');
@@ -107,7 +109,6 @@ export default function OnboardingPage() {
       return;
     }
 
-    // Save in Zustand Store
     setCustomerInfo(cleanName, cleanPhone);
     setOrderType(type);
 
@@ -123,54 +124,77 @@ export default function OnboardingPage() {
       try {
         await apiClient.put('/customers/profile', { name: cleanName, phone: cleanPhone });
         await apiClient.post('/customers/location', locData);
-      } catch (err) {
-        // Guest mode fallback
-      }
+      } catch (err) {}
     } else {
       try {
         await apiClient.put('/customers/profile', { name: cleanName, phone: cleanPhone });
       } catch (err) {}
     }
 
-    // Proceed to menu!
     router.push('/menu');
   };
 
   return (
-    <div className="flex-1 flex flex-col justify-between bg-slate-50 min-h-screen p-5 pb-8">
+    <div className="flex-1 flex flex-col justify-between bg-[#FAF8F5] min-h-screen p-5 pb-32">
       <div>
-        {/* Header Hero Banner */}
-        <div className="bg-gradient-to-r from-emerald-600 to-[#06C755] text-white p-5 rounded-2xl shadow-sm mb-5 relative overflow-hidden">
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-bold text-white mb-2">
-              <Sparkles className="w-3 h-3 text-amber-300" />
-              ยินดีต้อนรับสู่ระบบสั่งอาหาร
+        {/* 1. Hero Welcome Card (Exact Match to Reference Screen 1) */}
+        <div className="bg-gradient-to-br from-[#EAF8F1] via-[#E4F5ED] to-[#FAF1E6] rounded-4xl p-6 shadow-soft border border-emerald-100/60 relative overflow-hidden mb-5">
+          <div className="w-10 h-10 rounded-full bg-white shadow-xs flex items-center justify-center text-[#00A86B] font-bold text-lg mb-3">
+            🍃
+          </div>
+
+          <h1 className="text-2xl font-black text-slate-900 leading-tight">
+            Fresh Food & Meals <br />
+            <span className="text-[#00A86B]">Delivered to Your Doorstep</span>
+          </h1>
+
+          <p className="text-xs text-slate-500 mt-2 leading-relaxed max-w-[260px]">
+            อาหารสดใหม่ ปรุงจานต่อจาน พร้อมจัดส่งด่วนถึงมือคุณใน 20-30 นาที
+          </p>
+
+          {/* 3D Food Basket Photo */}
+          <div className="w-full h-44 my-3 flex items-center justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&auto=format&fit=crop&q=80"
+              alt="Fresh Groceries"
+              className="w-48 h-36 object-cover rounded-3xl shadow-md rotate-2 hover:rotate-0 transition-transform"
+            />
+          </div>
+
+          {/* Social Proof Avatar Row (Matching Reference Screen 1) */}
+          <div className="flex items-center justify-between pt-2 border-t border-emerald-100/60">
+            <span className="text-[11px] font-bold text-slate-600">
+              Trusted by 10,000+ Happy Foodies
+            </span>
+            <div className="flex -space-x-1.5">
+              <span className="w-6 h-6 rounded-full bg-[#00A86B] text-white text-[10px] font-bold flex items-center justify-center border-2 border-white">
+                ⭐
+              </span>
+              <span className="w-6 h-6 rounded-full bg-amber-400 text-slate-950 text-[10px] font-bold flex items-center justify-center border-2 border-white">
+                4.9
+              </span>
             </div>
-            <h1 className="text-xl font-bold leading-tight">
-              ระบุข้อมูลผู้รับ & จุดส่งอาหาร
-            </h1>
-            <p className="text-xs text-white/90 mt-1">
-              กรอกข้อมูลเพื่อรับบริการจัดส่งอาหารด่วนและสะสมแต้ม
-            </p>
           </div>
         </div>
 
         {errorMsg && (
-          <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-700 text-xs">
+          <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2 text-rose-700 text-xs shadow-soft">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
 
-        <form onSubmit={handleSaveAndProceed} className="space-y-4">
-          {/* Delivery Type Toggle (LINE MAN style) */}
-          <div className="grid grid-cols-2 gap-2 p-1.5 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
+        {/* 2. Customer Contact & Location Setup Form */}
+        <form onSubmit={handleSaveAndProceed} className="space-y-3.5">
+          {/* Delivery Type Toggle */}
+          <div className="grid grid-cols-2 gap-2 p-1.5 bg-white rounded-2xl border border-slate-100 shadow-soft">
             <button
               type="button"
               onClick={() => setType('DELIVERY')}
               className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs transition-all btn-tactile ${
                 type === 'DELIVERY'
-                  ? 'bg-[#06C755] text-white shadow-xs'
+                  ? 'bg-[#00A86B] text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 bg-slate-50'
               }`}
             >
@@ -182,7 +206,7 @@ export default function OnboardingPage() {
               onClick={() => setType('PICKUP')}
               className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs transition-all btn-tactile ${
                 type === 'PICKUP'
-                  ? 'bg-[#06C755] text-white shadow-xs'
+                  ? 'bg-[#00A86B] text-white shadow-xs'
                   : 'text-slate-600 hover:text-slate-900 bg-slate-50'
               }`}
             >
@@ -191,11 +215,11 @@ export default function OnboardingPage() {
             </button>
           </div>
 
-          {/* Customer Name */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+          {/* Name & Phone */}
+          <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-soft space-y-3">
             <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1.5">
-                ชื่อผู้รับ / ผู้สั่งซื้อ *
+              <label className="block text-xs font-black text-slate-800 mb-1">
+                ชื่อผู้สั่งซื้อ *
               </label>
               <div className="relative">
                 <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
@@ -205,14 +229,13 @@ export default function OnboardingPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="เช่น คุณบีม หรือ คุณสมชาย"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:bg-white transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:bg-white transition-all"
                 />
               </div>
             </div>
 
-            {/* Customer Phone */}
             <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1.5">
+              <label className="block text-xs font-black text-slate-800 mb-1">
                 เบอร์โทรศัพท์ติดต่อ *
               </label>
               <div className="relative">
@@ -224,27 +247,27 @@ export default function OnboardingPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="0812345678"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:bg-white transition-all font-mono"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:bg-white transition-all font-mono"
                 />
               </div>
             </div>
           </div>
 
-          {/* Location & Address Section (if Delivery) */}
+          {/* Location & GPS */}
           {type === 'DELIVERY' && (
-            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+            <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-soft space-y-3">
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-slate-800">
+                <label className="block text-xs font-black text-slate-800">
                   ที่อยู่และจุดปักหมุดจัดส่ง *
                 </label>
                 <button
                   type="button"
                   onClick={handleGetCurrentLocation}
                   disabled={locating}
-                  className="text-xs text-[#06C755] font-bold flex items-center gap-1 hover:underline btn-tactile"
+                  className="text-xs text-[#00A86B] font-bold flex items-center gap-1 hover:underline btn-tactile"
                 >
                   <Navigation className={`w-3.5 h-3.5 ${locating ? 'animate-spin' : ''}`} />
-                  <span>{locating ? 'กำลังหาพิกัด...' : 'ใช้พิกัดปัจจุบัน (GPS)'}</span>
+                  <span>{locating ? 'กำลังหาพิกัด...' : 'ใช้พิกัด GPS'}</span>
                 </button>
               </div>
 
@@ -253,48 +276,35 @@ export default function OnboardingPage() {
                 required
                 value={addressLine}
                 onChange={(e) => setAddressLine(e.target.value)}
-                placeholder="กรอกบ้านเลขที่, ชื่อคอนโด/ตึก, ซอย, ถนน หรือจุดสังเกต"
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:bg-white transition-all resize-none"
+                placeholder="กรอกบ้านเลขที่, คอนโด/ตึก, ซอย, ถนน หรือจุดสังเกต"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:bg-white transition-all resize-none"
               />
 
               <input
                 type="text"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="หมายเหตุเพิ่มเติมถึงไรเดอร์ (เช่น ฝากไว้ที่ป้อม รปภ.)"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:bg-white transition-all"
+                placeholder="หมายเหตุถึงไรเดอร์ (เช่น วางไว้ที่ล็อบบี้)"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:bg-white transition-all"
               />
-
-              {/* Nearest Branch Card */}
-              {nearestBranchInfo && (
-                <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl flex items-center justify-between text-xs">
-                  <div>
-                    <span className="font-bold text-slate-800">
-                      สาขาที่จัดส่ง: {nearestBranchInfo.name}
-                    </span>
-                    <p className="text-slate-500 mt-0.5 text-[11px]">
-                      ระยะทาง: ~{nearestBranchInfo.distanceKm} กม. | ค่าส่ง ฿0 (ส่งฟรี)
-                    </p>
-                  </div>
-                  <CheckCircle2 className="w-5 h-5 text-[#06C755] flex-shrink-0" />
-                </div>
-              )}
             </div>
           )}
         </form>
       </div>
 
-      {/* Action CTA Button */}
+      {/* 3. Get Started Button (Matching Reference Screen 1 "Get Started ➔") */}
       <div className="pt-4">
         <button
           type="button"
           onClick={handleSaveAndProceed}
-          className="w-full py-3.5 bg-[#06C755] hover:bg-[#05A848] text-white font-bold text-sm rounded-xl shadow-md flex items-center justify-center gap-2 transition-colors btn-tactile"
+          className="w-full py-4 bg-[#00A86B] hover:bg-[#00925D] text-white font-black text-sm rounded-full shadow-lg shadow-[#00A86B]/30 flex items-center justify-between px-6 transition-all btn-tactile"
         >
-          <span>เข้าสู่เมนูอาหาร</span>
-          <ChevronRight className="w-4 h-4" />
+          <span>เริ่มต้นเลือกเมนู (Get Started)</span>
+          <ArrowRight className="w-4 h-4" />
         </button>
       </div>
+
+      <BottomNav />
     </div>
   );
 }

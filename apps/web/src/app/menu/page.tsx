@@ -8,22 +8,38 @@ import { apiClient } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { formatPrice } from '@/lib/utils';
 import { WS_EVENTS } from '@food-ordering/types';
+import BottomNav from '@/components/BottomNav';
 import {
-  ShoppingBag,
-  Plus,
+  Search,
+  SlidersHorizontal,
+  ChevronDown,
+  Bell,
+  Sparkles,
   Flame,
+  Plus,
+  Minus,
+  Star,
+  Heart,
+  ArrowLeft,
   Check,
   X,
   MapPin,
-  Utensils,
-  ChevronRight,
-  AlertCircle,
   Clock,
-  Search,
-  Store,
-  Star,
-  Sparkles,
+  Utensils,
+  ArrowRight,
+  ShoppingBag,
 } from 'lucide-react';
+
+const CATEGORY_ICONS: Record<string, string> = {
+  'อาหารจานเดียว': '🍛',
+  'เมนูแนะนำ': '🔥',
+  'ต้มยำ & แกง': '🍲',
+  'ของทานเล่น': '🥟',
+  'เครื่องดื่ม & ของหวาน': '🥤',
+  'ผลไม้ & ผักสด': '🥑',
+  'เบเกอรี่': '🥐',
+  'default': '🍱',
+};
 
 export default function MenuPage() {
   const router = useRouter();
@@ -44,6 +60,7 @@ export default function MenuPage() {
   const [specialNote, setSpecialNote] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLiked, setIsLiked] = useState(false);
 
   // Protect route: Redirect to onboarding if profile not complete
   useEffect(() => {
@@ -58,7 +75,7 @@ export default function MenuPage() {
     queryFn: () => apiClient.get(`/menu?branchId=${activeBranchId || ''}`),
   });
 
-  // Fetch Cart summary
+  // Fetch Cart
   const { data: cart } = useQuery<any>({
     queryKey: ['cart'],
     queryFn: () => apiClient.get('/cart'),
@@ -110,6 +127,7 @@ export default function MenuPage() {
     setSelectedModifiers([]);
     setQuantity(1);
     setSpecialNote('');
+    setIsLiked(false);
   };
 
   const handleToggleModifier = (modifierId: string, group: any) => {
@@ -161,243 +179,390 @@ export default function MenuPage() {
     return (base + modSum) * quantity;
   };
 
+  // Extract all products for flash deals
+  const allProducts = categories.flatMap((c: any) => c.products || []);
+  const flashDealProducts = allProducts.slice(0, 4);
+
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 pb-32 min-h-screen">
-      {/* 1. Header with Delivery Address & Store Banner (LINE MAN / Grab style) */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-100 shadow-xs">
-        <div className="px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-emerald-50 text-[#06C755] flex items-center justify-center flex-shrink-0 font-bold text-xs border border-emerald-100">
+    <div className="flex-1 flex flex-col bg-[#FAF8F5] pb-28 min-h-screen">
+      {/* 1. Header (Deliver to address + Notification Bell - Screen 2 style) */}
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md px-5 pt-4 pb-3 border-b border-slate-100 shadow-xs">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => router.push('/onboarding')}
+            className="flex items-center gap-2 text-left min-w-0 flex-1 btn-tactile"
+          >
+            <div className="w-8 h-8 rounded-full bg-[#EAF8F1] text-[#00A86B] flex items-center justify-center flex-shrink-0">
               <MapPin className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                <span>{orderType === 'DELIVERY' ? 'ส่งถึงคุณที่' : 'รับเองที่ร้าน'}</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#06C755]" />
-                <span className="text-[#06C755] font-semibold">20-30 นาที</span>
+              <span className="text-[11px] text-slate-400 font-medium block">จุดจัดส่งอาหาร</span>
+              <div className="flex items-center gap-1 font-bold text-xs text-slate-800 truncate">
+                <span className="truncate">
+                  {orderType === 'DELIVERY'
+                    ? location?.addressLine || 'เลือกจุดปักหมุด'
+                    : activeBranchName || 'สาขาหลัก'}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
               </div>
-              <p className="text-xs font-bold text-slate-900 truncate max-w-[200px]">
-                {orderType === 'DELIVERY'
-                  ? location?.addressLine || 'ที่อยู่จัดส่งปัจจุบัน'
-                  : activeBranchName || 'สาขาหลัก'}
-              </p>
             </div>
-          </div>
+          </button>
 
           <button
-            onClick={() => router.push('/onboarding')}
-            className="text-[11px] font-bold text-[#06C755] px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 rounded-full border border-emerald-100 transition-colors btn-tactile flex-shrink-0"
+            onClick={() => router.push('/orders')}
+            className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200/60 flex items-center justify-center text-slate-700 transition-colors btn-tactile relative"
           >
-            เปลี่ยนจุดส่ง
+            <Bell className="w-4 h-4" />
+            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#00A86B]" />
           </button>
         </div>
 
-        {/* Search Input */}
-        <div className="px-4 pb-2.5">
-          <div className="relative">
+        {/* Search Bar with Filter Button */}
+        <div className="mt-3.5 flex items-center gap-2.5">
+          <div className="relative flex-1">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ค้นหาเมนูโปรดของคุณ..."
-              className="w-full pl-9.5 pr-4 py-2 bg-slate-100 hover:bg-slate-200/70 focus:bg-white border border-transparent focus:border-[#06C755] rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none transition-all"
+              placeholder="ค้นหาอาหารและเครื่องดื่ม..."
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-100/80 hover:bg-slate-100 focus:bg-white border border-transparent focus:border-[#00A86B] rounded-2xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none transition-all"
             />
           </div>
-        </div>
-
-        {/* Sticky Horizontal Category Tabs */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 pb-3 pt-1">
-          {categories.map((cat: any) => (
-            <button
-              key={cat.id}
-              onClick={() => {
-                setActiveCategory(cat.id);
-                document.getElementById(`category-${cat.id}`)?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all btn-tactile ${
-                activeCategory === cat.id
-                  ? 'bg-[#06C755] text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {cat.name}
-            </button>
-          ))}
+          <button className="w-10 h-10 rounded-2xl bg-[#00A86B] text-white flex items-center justify-center shadow-md shadow-[#00A86B]/25 btn-tactile flex-shrink-0">
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
         </div>
       </header>
 
-      {/* 2. Restaurant Promotion Banner */}
-      <div className="p-3.5">
-        <div className="bg-gradient-to-r from-emerald-600 to-[#06C755] text-white rounded-2xl p-4 shadow-sm relative overflow-hidden flex items-center justify-between">
-          <div className="relative z-10">
-            <span className="text-[10px] font-bold bg-white/20 backdrop-blur-md px-2 py-0.5 rounded-full uppercase tracking-wider">
-              Special Promo
-            </span>
-            <h3 className="text-base font-extrabold mt-1">ส่งฟรีทุกออเดอร์ วันนี้!</h3>
-            <p className="text-xs text-white/90 mt-0.5">เมื่อสั่งซื้อขั้นต่ำ ฿150 ขึ้นไป</p>
+      <div className="p-4 space-y-5">
+        {/* 2. Featured Fresh Banner (Matching Reference Screen 2) */}
+        {!searchQuery && (
+          <div className="bg-gradient-to-r from-[#EAF8F1] via-[#E4F5ED] to-[#FAF1E6] rounded-3xl p-5 shadow-soft border border-emerald-100/50 flex items-center justify-between relative overflow-hidden">
+            <div className="space-y-2 max-w-[60%] relative z-10">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#00A86B] bg-white px-2.5 py-1 rounded-full shadow-xs">
+                Special Offer
+              </span>
+              <h2 className="text-base font-black text-slate-900 leading-tight">
+                สดใหม่ ส่งไว อร่อยทุกมื้อ <span className="text-[#00A86B]">ลดสูงสุด 30%</span>
+              </h2>
+              <button
+                onClick={() => {
+                  document.getElementById('menu-items-section')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="px-4 py-2 bg-[#00A86B] hover:bg-[#00925D] text-white font-bold text-xs rounded-full shadow-md shadow-[#00A86B]/30 flex items-center gap-1.5 transition-all btn-tactile"
+              >
+                <span>สั่งเลย</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* 3D Food Basket Image */}
+            <div className="w-28 h-28 relative flex items-center justify-center flex-shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://images.unsplash.com/photo-1542838132-92c53300491e?w=500&auto=format&fit=crop&q=80"
+                alt="Fresh Food Basket"
+                className="w-24 h-24 object-cover rounded-2xl shadow-md rotate-3 hover:rotate-0 transition-transform"
+              />
+            </div>
           </div>
-          <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center text-white flex-shrink-0">
-            <Flame className="w-7 h-7 text-amber-300" />
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Menu Categories & Product Cards */}
-      <div className="px-3.5 space-y-5">
-        {isLoading ? (
-          <div className="space-y-3 pt-2">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-28 bg-white border border-slate-200/80 animate-pulse rounded-2xl" />
-            ))}
-          </div>
-        ) : (
-          categories.map((cat: any) => {
-            const filteredProducts = cat.products?.filter((p: any) =>
-              searchQuery ? p.name.toLowerCase().includes(searchQuery.toLowerCase()) : true,
-            );
-
-            if (filteredProducts?.length === 0 && searchQuery) return null;
-
-            return (
-              <div key={cat.id} id={`category-${cat.id}`} className="space-y-2.5">
-                <div className="flex items-center justify-between pt-1">
-                  <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                    <span>{cat.name}</span>
-                    <span className="text-xs text-slate-400 font-normal">
-                      ({filteredProducts?.length || 0})
-                    </span>
-                  </h2>
-                </div>
-
-                <div className="space-y-2.5">
-                  {filteredProducts?.map((product: any) => (
-                    <div
-                      key={product.id}
-                      onClick={() => handleOpenProduct(product)}
-                      className={`relative p-3 bg-white border border-slate-200/80 rounded-2xl shadow-xs flex gap-3.5 transition-all cursor-pointer hover:border-emerald-200 ${
-                        !product.isAvailable ? 'opacity-70 bg-slate-50' : 'btn-tactile active:scale-[0.99]'
-                      }`}
-                    >
-                      {/* Food Thumbnail */}
-                      <div className="w-24 h-24 rounded-xl bg-slate-100 flex-shrink-0 relative overflow-hidden flex items-center justify-center">
-                        {product.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={product.imageUrl}
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Utensils className="w-8 h-8 text-slate-300" />
-                        )}
-
-                        {/* SOLD OUT Overlay */}
-                        {!product.isAvailable && (
-                          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center">
-                            <span className="text-[10px] font-black text-white px-2 py-0.5 bg-rose-600 rounded-md tracking-wider">
-                              หมดชั่วคราว
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Product Info */}
-                      <div className="flex-1 flex flex-col justify-between min-w-0">
-                        <div>
-                          <h3 className="font-bold text-slate-900 text-sm leading-snug truncate">
-                            {product.name}
-                          </h3>
-                          {product.description && (
-                            <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5 leading-relaxed">
-                              {product.description}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-50">
-                          <span className="font-extrabold text-slate-900 text-sm">
-                            {formatPrice(product.basePrice)}
-                          </span>
-
-                          {product.isAvailable ? (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleOpenProduct(product);
-                              }}
-                              className="px-3 py-1 bg-[#06C755] hover:bg-[#05A848] text-white text-xs font-bold rounded-full shadow-xs flex items-center gap-1 transition-colors btn-tactile"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                              เพิ่ม
-                            </button>
-                          ) : (
-                            <span className="text-[11px] font-semibold text-slate-400">หมด</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })
         )}
+
+        {/* 3. Category Grid (4x2 soft rounded tiles - Matching Reference Screen 2) */}
+        <div>
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h3 className="font-extrabold text-sm text-slate-900">หมวดหมู่สินค้า</h3>
+            <button
+              onClick={() => setActiveCategory('')}
+              className="text-xs font-bold text-[#00A86B] hover:underline"
+            >
+              ดูทั้งหมด
+            </button>
+          </div>
+
+          <div className="grid grid-cols-4 gap-2.5">
+            {categories.map((cat: any) => {
+              const icon = CATEGORY_ICONS[cat.name] || CATEGORY_ICONS['default'];
+              const isCurrent = activeCategory === cat.id;
+
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => {
+                    setActiveCategory(cat.id);
+                    document.getElementById(`category-${cat.id}`)?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  className={`p-3 rounded-2xl flex flex-col items-center gap-1.5 transition-all btn-tactile ${
+                    isCurrent
+                      ? 'bg-white shadow-soft ring-2 ring-[#00A86B] text-[#00A86B]'
+                      : 'bg-white/80 hover:bg-white text-slate-700 border border-slate-100'
+                  }`}
+                >
+                  <div className="w-11 h-11 rounded-2xl bg-[#FAF8F5] flex items-center justify-center text-xl shadow-xs">
+                    {icon}
+                  </div>
+                  <span className="text-[11px] font-bold truncate max-w-full text-center">
+                    {cat.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 4. Flash Deals Section with Countdown Timer (Matching Reference Screen 2) */}
+        {!searchQuery && flashDealProducts.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-1">
+                  <span>ดีลเด็ดประจำวัน</span>
+                  <Flame className="w-4 h-4 text-orange-500 fill-orange-500" />
+                </h3>
+                {/* Live Countdown Pill */}
+                <div className="flex items-center gap-1 font-mono text-[10px] font-black bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full border border-orange-200">
+                  <Clock className="w-3 h-3" />
+                  <span>02 : 45 : 30</span>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-[#00A86B]">See All</span>
+            </div>
+
+            {/* Horizontal Flash Deals Carousel */}
+            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 pt-1 -mx-4 px-4">
+              {flashDealProducts.map((product: any) => (
+                <div
+                  key={product.id}
+                  onClick={() => handleOpenProduct(product)}
+                  className="w-32 bg-white rounded-2xl p-3 border border-slate-100 shadow-soft flex-shrink-0 flex flex-col justify-between cursor-pointer hover:border-emerald-200 transition-all btn-tactile"
+                >
+                  <div className="w-full h-20 rounded-xl bg-slate-50 overflow-hidden mb-2 relative flex items-center justify-center">
+                    {product.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <Utensils className="w-6 h-6 text-slate-300" />
+                    )}
+                  </div>
+
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-900 truncate">{product.name}</h4>
+                    <span className="text-[10px] text-slate-400 block">จานเด็ด</span>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-2 pt-1">
+                    <span className="font-extrabold text-xs text-slate-900">
+                      {formatPrice(product.basePrice)}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenProduct(product);
+                      }}
+                      className="w-6 h-6 rounded-full bg-[#00A86B] text-white flex items-center justify-center shadow-xs hover:bg-[#00925D] btn-tactile"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 5. Menu Categories & Product Cards Grid (Matching Reference Screen 2 "Best Selling") */}
+        <div id="menu-items-section" className="space-y-6 pt-1">
+          {isLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-28 bg-white rounded-3xl animate-pulse" />
+              ))}
+            </div>
+          ) : (
+            categories.map((cat: any) => {
+              const filteredProducts = cat.products?.filter((p: any) =>
+                searchQuery ? p.name.toLowerCase().includes(searchQuery.toLowerCase()) : true,
+              );
+
+              if (filteredProducts?.length === 0 && searchQuery) return null;
+
+              return (
+                <div key={cat.id} id={`category-${cat.id}`} className="space-y-3">
+                  <div className="flex items-center justify-between px-1">
+                    <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                      <span>{cat.name}</span>
+                      <span className="text-xs text-slate-400 font-normal">
+                        ({filteredProducts?.length || 0})
+                      </span>
+                    </h3>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {filteredProducts?.map((product: any) => (
+                      <div
+                        key={product.id}
+                        onClick={() => handleOpenProduct(product)}
+                        className={`p-3.5 bg-white border border-slate-100 rounded-3xl shadow-soft flex gap-3.5 transition-all cursor-pointer hover:border-emerald-200 ${
+                          !product.isAvailable ? 'opacity-70 bg-slate-50' : 'btn-tactile active:scale-[0.99]'
+                        }`}
+                      >
+                        {/* Food Image */}
+                        <div className="w-22 h-22 rounded-2xl bg-slate-50 flex-shrink-0 overflow-hidden relative flex items-center justify-center border border-slate-100">
+                          {product.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={product.imageUrl}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Utensils className="w-7 h-7 text-slate-300" />
+                          )}
+
+                          {!product.isAvailable && (
+                            <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center">
+                              <span className="text-[9px] font-black text-white px-1.5 py-0.5 bg-rose-600 rounded">
+                                หมด
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Product Info */}
+                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                          <div>
+                            <div className="flex items-start justify-between gap-1">
+                              <h4 className="font-bold text-slate-900 text-sm truncate">
+                                {product.name}
+                              </h4>
+                              <span className="text-[10px] font-bold bg-amber-50 text-amber-700 px-1.5 py-0.2 rounded border border-amber-200/50 flex items-center gap-0.5">
+                                <Star className="w-2.5 h-2.5 fill-amber-400 text-amber-400" />
+                                4.8
+                              </span>
+                            </div>
+                            {product.description && (
+                              <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5 leading-relaxed">
+                                {product.description}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-50">
+                            <span className="font-extrabold text-slate-900 text-sm">
+                              {formatPrice(product.basePrice)}
+                            </span>
+
+                            {product.isAvailable ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenProduct(product);
+                                }}
+                                className="w-7 h-7 rounded-full bg-[#00A86B] hover:bg-[#00925D] text-white flex items-center justify-center shadow-xs transition-colors btn-tactile"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
+                            ) : (
+                              <span className="text-[11px] font-bold text-slate-400">หมด</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
-      {/* 4. Floating Sticky Bottom Cart Bar (Grab / LINE MAN Green) */}
-      {cart && cart.totalItems > 0 && (
-        <div className="fixed bottom-4 inset-x-0 max-w-[480px] mx-auto px-3.5 z-40">
-          <button
-            onClick={() => router.push('/cart')}
-            className="w-full p-3.5 bg-[#06C755] hover:bg-[#05A848] text-white rounded-2xl shadow-floating flex items-center justify-between transition-all btn-tactile border border-emerald-400/40"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white text-[#06C755] flex items-center justify-center font-bold text-xs shadow-xs">
-                {cart.totalItems}
-              </div>
-              <div className="text-left">
-                <span className="text-[11px] text-white/90 block">ตะกร้าของคุณ</span>
-                <p className="font-extrabold text-sm text-white">{formatPrice(cart.subtotal)}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 text-xs font-bold bg-white/20 px-3.5 py-1.5 rounded-full backdrop-blur-md">
-              <span>ดูตะกร้า</span>
-              <ChevronRight className="w-4 h-4" />
-            </div>
-          </button>
-        </div>
-      )}
-
-      {/* 5. Product Modifier Bottom Sheet Modal */}
+      {/* 6. Product Details Bottom Sheet Modal (Exact Match to Reference Screen 4) */}
       {selectedProduct && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end justify-center">
-          <div className="w-full max-w-[480px] bg-white rounded-t-3xl max-h-[88vh] flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200">
-            {/* Modal Header */}
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="font-bold text-base text-slate-900">{selectedProduct.name}</h3>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end justify-center p-0">
+          <div className="w-full max-w-[480px] bg-white rounded-t-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200">
+            {/* Modal Header Bar */}
+            <div className="px-5 pt-4 pb-2 flex items-center justify-between">
               <button
                 onClick={() => setSelectedProduct(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition-colors"
+                className="w-9 h-9 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center hover:bg-slate-200 transition-colors btn-tactile"
               >
-                <X className="w-4 h-4" />
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <h3 className="font-bold text-sm text-slate-900">รายละเอียดสินค้า</h3>
+              <button
+                onClick={() => setIsLiked(!isLiked)}
+                className={`w-9 h-9 rounded-full border flex items-center justify-center transition-colors btn-tactile ${
+                  isLiked ? 'bg-rose-50 border-rose-200 text-rose-500' : 'bg-slate-100 border-transparent text-slate-400'
+                }`}
+              >
+                <Heart className={`w-4 h-4 ${isLiked ? 'fill-rose-500' : ''}`} />
               </button>
             </div>
 
             {/* Modal Body */}
-            <div className="p-4 overflow-y-auto space-y-4 flex-1">
+            <div className="px-5 py-3 overflow-y-auto space-y-4 flex-1">
+              {/* Product Hero Image */}
+              <div className="w-full h-48 rounded-3xl bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-100 shadow-soft">
+                {selectedProduct.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={selectedProduct.imageUrl}
+                    alt={selectedProduct.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Utensils className="w-12 h-12 text-slate-300" />
+                )}
+              </div>
+
+              {/* Title & Rating */}
+              <div>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h2 className="font-black text-lg text-slate-900">{selectedProduct.name}</h2>
+                    <span className="text-xs text-slate-400">จานเด็ดปรุงสดใหม่</span>
+                  </div>
+                  <span className="text-xs font-bold bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full border border-amber-200/60 flex items-center gap-1">
+                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                    4.8 (230)
+                  </span>
+                </div>
+
+                {/* Price tag with 18% OFF badge */}
+                <div className="flex items-center gap-2.5 mt-2">
+                  <span className="text-2xl font-black text-slate-900">
+                    {formatPrice(selectedProduct.basePrice)}
+                  </span>
+                  <span className="text-xs font-bold bg-[#EAF8F1] text-[#00A86B] px-2 py-0.5 rounded-md">
+                    18% OFF
+                  </span>
+                </div>
+
+                {selectedProduct.description && (
+                  <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                    {selectedProduct.description}
+                  </p>
+                )}
+              </div>
+
               {/* Variants Section */}
               {selectedProduct.variants && selectedProduct.variants.length > 0 && (
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-800 uppercase">เลือกขนาด / เซ็ต</label>
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <label className="text-xs font-extrabold text-slate-800">เลือกขนาด / เซ็ต</label>
                   <div className="space-y-1.5">
                     {selectedProduct.variants.map((variant: any) => (
                       <div
                         key={variant.id}
                         onClick={() => setSelectedVariantId(variant.id)}
-                        className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                        className={`p-3 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
                           selectedVariantId === variant.id
-                            ? 'border-[#06C755] bg-emerald-50/70 text-slate-900 font-semibold'
+                            ? 'border-[#00A86B] bg-[#EAF8F1] text-slate-900 font-bold'
                             : 'border-slate-200 bg-white text-slate-700'
                         }`}
                       >
@@ -411,9 +576,9 @@ export default function MenuPage() {
 
               {/* Modifier Groups Section */}
               {selectedProduct.modifierGroups?.map((group: any) => (
-                <div key={group.id} className="space-y-2">
+                <div key={group.id} className="space-y-2 pt-2 border-t border-slate-100">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800">
+                    <label className="text-xs font-extrabold text-slate-800">
                       {group.name} {group.isRequired && <span className="text-rose-600">*</span>}
                     </label>
                     <span className="text-[10px] text-slate-400">
@@ -428,16 +593,16 @@ export default function MenuPage() {
                         <div
                           key={mod.id}
                           onClick={() => handleToggleModifier(mod.id, group)}
-                          className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                          className={`p-3 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
                             isSelected
-                              ? 'border-[#06C755] bg-emerald-50/70 text-slate-900 font-semibold'
+                              ? 'border-[#00A86B] bg-[#EAF8F1] text-slate-900 font-bold'
                               : 'border-slate-200 bg-white text-slate-700'
                           }`}
                         >
                           <div className="flex items-center gap-2.5">
                             <div
                               className={`w-4 h-4 rounded-${group.maxSelect === 1 ? 'full' : 'md'} border flex items-center justify-center ${
-                                isSelected ? 'border-[#06C755] bg-[#06C755] text-white' : 'border-slate-300'
+                                isSelected ? 'border-[#00A86B] bg-[#00A86B] text-white' : 'border-slate-300'
                               }`}
                             >
                               {isSelected && <Check className="w-3 h-3" />}
@@ -445,7 +610,7 @@ export default function MenuPage() {
                             <span className="text-xs">{mod.name}</span>
                           </div>
                           {Number(mod.price) > 0 && (
-                            <span className="text-xs font-semibold text-slate-500">
+                            <span className="text-xs font-bold text-slate-600">
                               +{formatPrice(mod.price)}
                             </span>
                           )}
@@ -457,47 +622,43 @@ export default function MenuPage() {
               ))}
 
               {/* Special Note */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-800">
-                  หมายเหตุเพิ่มเติมสำหรับร้านค้า
-                </label>
+              <div className="space-y-1 pt-2 border-t border-slate-100">
+                <label className="text-xs font-extrabold text-slate-800">หมายเหตุถึงร้านค้า</label>
                 <input
                   type="text"
                   value={specialNote}
                   onChange={(e) => setSpecialNote(e.target.value)}
-                  placeholder="เช่น ไม่ใส่ผักชี, เผ็ดน้อย, แยกน้ำซุป"
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:bg-white"
+                  placeholder="เช่น ไม่ใส่ผักชี, เผ็ดน้อย"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs focus:outline-none focus:ring-2 focus:ring-[#00A86B]"
                 />
-              </div>
-
-              {/* Quantity Controls */}
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-xs font-bold text-slate-800">จำนวน</span>
-                <div className="flex items-center gap-3 bg-slate-100 p-1 rounded-xl">
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-7 h-7 bg-white rounded-lg font-bold text-slate-700 shadow-xs flex items-center justify-center hover:bg-slate-200 btn-tactile"
-                  >
-                    -
-                  </button>
-                  <span className="w-6 text-center font-bold text-xs">{quantity}</span>
-                  <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="w-7 h-7 bg-white rounded-lg font-bold text-slate-700 shadow-xs flex items-center justify-center hover:bg-slate-200 btn-tactile"
-                  >
-                    +
-                  </button>
-                </div>
               </div>
             </div>
 
-            {/* Modal Footer CTA */}
-            <div className="p-4 border-t border-slate-100 bg-slate-50">
+            {/* Modal Bottom CTA Bar with Quantity Stepper (Exact Match to Reference Screen 4) */}
+            <div className="p-4 border-t border-slate-100 bg-white flex items-center gap-3">
+              {/* Stepper */}
+              <div className="flex items-center gap-3 bg-slate-100 px-3 py-2 rounded-full">
+                <button
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="w-7 h-7 bg-white rounded-full flex items-center justify-center text-slate-800 font-black shadow-xs hover:bg-slate-200 btn-tactile text-xs"
+                >
+                  -
+                </button>
+                <span className="w-4 text-center font-black text-xs">{quantity}</span>
+                <button
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="w-7 h-7 bg-white rounded-full flex items-center justify-center text-slate-800 font-black shadow-xs hover:bg-slate-200 btn-tactile text-xs"
+                >
+                  +
+                </button>
+              </div>
+
+              {/* Add to Cart Pill Button */}
               <button
                 type="button"
                 disabled={addToCartMutation.isPending}
                 onClick={handleAddToCart}
-                className="w-full py-3.5 bg-[#06C755] hover:bg-[#05A848] text-white font-bold text-sm rounded-xl shadow-md flex items-center justify-between px-5 transition-colors btn-tactile disabled:opacity-50"
+                className="flex-1 py-3.5 bg-[#00A86B] hover:bg-[#00925D] text-white font-extrabold text-sm rounded-full shadow-lg shadow-[#00A86B]/30 flex items-center justify-between px-6 transition-all btn-tactile disabled:opacity-50"
               >
                 <span>เพิ่มลงตะกร้า</span>
                 <span>{formatPrice(calculateModalPrice())}</span>
@@ -506,6 +667,9 @@ export default function MenuPage() {
           </div>
         </div>
       )}
+
+      {/* 7. Bottom Navigation Bar */}
+      <BottomNav />
     </div>
   );
 }

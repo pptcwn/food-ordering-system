@@ -11,24 +11,24 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
     
-    /* Authentic Delivery Emerald Green (LINE MAN #06C755 / Grab #00B14F) */
-    --primary: 152 94% 40%;
+    /* Fresh Mint-Emerald Green (from Reference UI Design) */
+    --primary: 158 100% 33%;
     --primary-foreground: 0 0% 100%;
     
-    /* Warm Amber for discounts, ratings & badges */
-    --secondary: 38 92% 50%;
+    /* Warm Orange / Amber for Flash Deals & Discounts */
+    --secondary: 27 96% 54%;
     --secondary-foreground: 0 0% 100%;
     
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 152 40% 96%;
-    --accent-foreground: 152 94% 25%;
+    --accent: 158 50% 96%;
+    --accent-foreground: 158 100% 25%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 152 94% 40%;
-    --radius: 1rem;
+    --ring: 158 100% 33%;
+    --radius: 1.25rem;
   }
 }
 
@@ -38,14 +38,14 @@
   }
   body {
     font-family: 'Prompt', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    @apply bg-slate-100 text-slate-900 antialiased;
+    @apply bg-[#FAF8F5] text-slate-900 antialiased;
     -webkit-tap-highlight-color: transparent;
   }
 }
 
 /* Tactile button push feedback */
 button:active, .btn-tactile:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
   transition: transform 0.1s ease;
 }
 
@@ -58,22 +58,11 @@ button:active, .btn-tactile:active {
   scrollbar-width: none;
 }
 
-/* Delivery Pulsing Animation */
-@keyframes pulse-ring {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(6, 199, 85, 0.5);
-  }
-  70% {
-    transform: scale(1);
-    box-shadow: 0 0 0 10px rgba(6, 199, 85, 0);
-  }
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(6, 199, 85, 0);
-  }
+/* Soft ambient shadow utilities */
+.shadow-soft {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
 }
 
-.animate-pulse-ring {
-  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+.shadow-card-fresh {
+  box-shadow: 0 10px 30px -5px rgba(0, 168, 107, 0.08), 0 4px 10px -2px rgba(0, 0, 0, 0.03);
 }

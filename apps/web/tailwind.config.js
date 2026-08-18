@@ -22,15 +22,15 @@ module.exports = {
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
         primary: {
-          DEFAULT: '#06C755', // Authentic LINE MAN / Delivery Emerald Green
-          hover: '#05A848',
-          light: '#E8F9EE',
-          dark: '#037A34',
+          DEFAULT: '#00A86B', // Fresh Mint-Emerald from design reference
+          hover: '#00925D',
+          light: '#EAF8F1',
+          dark: '#006842',
           foreground: '#FFFFFF',
         },
         secondary: {
-          DEFAULT: '#FF7A00', // Warm Amber (Ratings, Badges & Highlights)
-          light: '#FFF4EB',
+          DEFAULT: '#FF7A00', // Warm Amber for Badges & Deals
+          light: '#FFF4EA',
           foreground: '#FFFFFF',
         },
         destructive: {
@@ -55,6 +55,7 @@ module.exports = {
         },
       },
       borderRadius: {
+        '4xl': '2rem',
         '3xl': '1.5rem',
         '2xl': '1.25rem',
         xl: '1rem',
@@ -63,11 +64,11 @@ module.exports = {
         sm: 'calc(var(--radius) - 4px)',
       },
       fontFamily: {
-        sans: ['var(--font-prompt)', 'var(--font-jakarta)', 'system-ui', 'sans-serif'],
+        sans: ['Prompt', 'var(--font-jakarta)', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        'card': '0 2px 8px -2px rgba(0, 0, 0, 0.05), 0 1px 4px -1px rgba(0, 0, 0, 0.03)',
-        'floating': '0 8px 24px -4px rgba(6, 199, 85, 0.25), 0 4px 12px -2px rgba(0, 0, 0, 0.06)',
+        'fresh': '0 12px 32px -4px rgba(0, 168, 107, 0.18), 0 4px 12px -2px rgba(0, 0, 0, 0.04)',
+        'card-soft': '0 4px 20px -2px rgba(0, 0, 0, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
       },
     },
   },
