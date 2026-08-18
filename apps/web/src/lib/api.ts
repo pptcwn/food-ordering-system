@@ -2,17 +2,15 @@ import axios from 'axios';
 
 function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
-    // 1. If explicit non-localhost NEXT_PUBLIC_API_URL is provided
-    const envUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (envUrl && !envUrl.includes('localhost')) {
-      return envUrl;
-    }
-    // 2. Dynamic discovery: derive API port 4000 from current browser window.location
-    const protocol = window.location.protocol;
-    const hostname = window.location.hostname;
-    return `${protocol}//${hostname}:4000/api`;
+    // In browser: use same-origin relative path /api (proxied seamlessly by Next.js rewrites)
+    return '/api';
   }
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+  // On server-side rendering (SSR)
+  return (
+    process.env.INTERNAL_API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    (process.env.NODE_ENV === 'production' ? 'http://api:4000/api' : 'http://localhost:4000/api')
+  );
 }
 
 export const apiClient = axios.create({
@@ -22,10 +20,10 @@ export const apiClient = axios.create({
   },
 });
 
-// Dynamic baseURL interceptor for every request
+// Dynamic request interceptor
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    config.baseURL = getApiBaseUrl();
+    config.baseURL = '/api';
 
     const token = localStorage.getItem('access_token');
     if (token) {
