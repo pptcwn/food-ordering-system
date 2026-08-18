@@ -57,6 +57,11 @@ jobs:
             echo "🚀 Starting Automated Deployment on GCP VM..."
             cd ~/food-ordering-system || cd /home/${{ secrets.GCP_VM_USERNAME }}/food-ordering-system
             
+            # Clean disk space before build
+            sudo apt-get clean || true
+            sudo rm -rf /tmp/* || true
+            docker builder prune -af || true
+            
             # Pull latest changes from main branch
             git fetch origin main
             git reset --hard origin/main
@@ -69,13 +74,16 @@ jobs:
             fi
             
             # Rebuild and restart production containers
-            docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+            docker compose -f docker-compose.prod.yml up -d --build postgres redis minio uptime-kuma
+            sleep 4
+            docker compose -f docker-compose.prod.yml up -d --build api worker web
             
             # Run database migrations
             sleep 6
             docker compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy || true
             
-            # Clean unused images
+            # Clean unused build cache
+            docker builder prune -f || true
             docker image prune -f || true
             
             echo "✅ Deployment finished successfully!"

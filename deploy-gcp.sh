@@ -5,16 +5,20 @@ echo "=========================================================="
 echo "🚀 Food Ordering System — GCP Compute Engine Deploy Script"
 echo "=========================================================="
 
-# Remove any broken docker apt repo from previous attempts
-sudo rm -f /etc/apt/sources.list.d/docker.list
+# 0. Free up disk space before build
+echo "🧹 0/5 Cleaning up disk space..."
+sudo apt-get clean || true
+sudo rm -rf /tmp/* || true
+docker builder prune -af || true
 
-# 1. Install Docker & Docker Compose via official Docker script (auto-detects Debian 12 / Ubuntu)
-echo "📦 1/5 Installing Docker & Docker Compose..."
+# 1. Install Docker & Docker Compose if not present
 if ! command -v docker &> /dev/null; then
+  echo "📦 1/5 Installing Docker & Docker Compose..."
   sudo apt-get update -y
   sudo apt-get install -y ca-certificates curl gnupg git ufw
   curl -fsSL https://get.docker.com | sudo sh
   sudo usermod -aG docker $USER || true
+  sudo chmod 666 /var/run/docker.sock || true
 fi
 
 # 2. Configure Firewall
@@ -37,14 +41,19 @@ if [ ! -f .env ]; then
   sed -i "s|NEXT_PUBLIC_WS_URL=.*|NEXT_PUBLIC_WS_URL=http://34.126.172.168:4000|g" .env
 fi
 
-# 4. Build and Launch Containers
+# 4. Build and Launch Containers sequentially to save disk and memory
 echo "🐳 4/5 Starting Docker Compose Production Stack..."
-sudo docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml up -d --build postgres redis minio uptime-kuma
+sleep 5
+docker compose -f docker-compose.prod.yml up -d --build api worker web
 
 # 5. Run Database Migrations
 echo "🗄️ 5/5 Running Prisma Database Migrations..."
 sleep 8
-sudo docker compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy || true
+docker compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy || true
+
+# 6. Post-deploy cleanup
+docker builder prune -f || true
 
 echo "=========================================================="
 echo "✅ DEPLOYMENT SUCCESSFUL!"
