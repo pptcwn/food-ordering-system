@@ -46,55 +46,28 @@ jobs:
     needs: test-and-verify
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.GCP_VM_HOST }}
-          username: ${{ secrets.GCP_VM_USERNAME }}
-          key: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
-          port: 22
-          script: |
+      - name: Deploy via Native SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          VM_HOST: ${{ secrets.GCP_VM_HOST }}
+          VM_USER: ${{ secrets.GCP_VM_USERNAME }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "$VM_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$VM_USER@$VM_HOST" << 'EOF'
             echo "🚀 Starting Automated Deployment on GCP VM..."
+            cd ~/food-ordering-system || cd /home/$USER/food-ordering-system
             
-            # 1. Expand Partition to full 50GB
-            sudo apt-get update -y
-            sudo apt-get install -y cloud-guest-utils
-            sudo growpart /dev/sda 1 || sudo growpart /dev/vda 1 || sudo growpart /dev/nvme0n1 1 || true
-            sudo resize2fs /dev/sda1 || sudo resize2fs /dev/vda1 || sudo resize2fs /dev/nvme0n1p1 || true
-            
-            # Print current disk usage
-            df -h /
-            
-            # 2. Clean old caches & prune old failed layers
-            sudo apt-get clean || true
-            sudo rm -rf /tmp/* || true
-            docker system prune -af --volumes || true
-            
-            cd ~/food-ordering-system || cd /home/${{ secrets.GCP_VM_USERNAME }}/food-ordering-system
-            
-            # 3. Pull latest changes from main branch
+            # Pull latest changes from main branch
             git fetch origin main
             git reset --hard origin/main
             
-            # 4. Ensure .env exists
-            if [ ! -f .env ]; then
-              cp .env.example .env
-              sed -i "s|NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://${{ secrets.GCP_VM_HOST }}:4000/api|g" .env
-              sed -i "s|NEXT_PUBLIC_WS_URL=.*|NEXT_PUBLIC_WS_URL=http://${{ secrets.GCP_VM_HOST }}:4000|g" .env
-            fi
-            
-            # 5. Build and start all containers
-            docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
-            
-            # 6. Run database migrations
-            echo "⏳ Waiting for PostgreSQL & API to stabilize..."
-            sleep 10
-            docker compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy || true
-            
-            # 7. Clean build cache
-            docker builder prune -f || true
-            
-            # 8. Check running containers
-            docker compose -f docker-compose.prod.yml ps
+            # Execute deploy script
+            chmod +x deploy-gcp.sh
+            ./deploy-gcp.sh
             
             echo "✅ Deployment finished successfully!"
+          EOF
