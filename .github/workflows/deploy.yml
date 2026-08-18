@@ -27,12 +27,16 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma Client
-        run: pnpm --filter @food-ordering/database db:generate
+      - name: Build Internal Packages & Generate Prisma
+        run: |
+          pnpm --filter @food-ordering/config build
+          pnpm --filter @food-ordering/types build
+          pnpm --filter @food-ordering/database db:generate
+          pnpm --filter @food-ordering/database build
+          pnpm --filter @food-ordering/validation build
 
       - name: Typecheck API & Web
         run: |
-          pnpm --filter @food-ordering/types build
           pnpm --filter @food-ordering/api exec tsc --noEmit
           pnpm --filter @food-ordering/web exec tsc --noEmit
 
@@ -40,6 +44,7 @@ jobs:
     name: 🚀 Deploy to Google Cloud Compute Engine
     needs: test-and-verify
     runs-on: ubuntu-latest
+    if: "${{ secrets.GCP_VM_HOST != '' && secrets.GCP_SSH_PRIVATE_KEY != '' }}"
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
