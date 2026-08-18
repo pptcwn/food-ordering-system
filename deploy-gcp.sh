@@ -5,16 +5,23 @@ echo "=========================================================="
 echo "🚀 Food Ordering System — GCP Compute Engine Deploy Script"
 echo "=========================================================="
 
-# 0. Free up disk space before build
-echo "🧹 0/5 Cleaning up disk space..."
+# 0. Expand Linux filesystem partition to use full 50GB disk
+echo "💾 0/6 Expanding Linux partition to use full 50GB disk..."
+sudo apt-get update -y
+sudo apt-get install -y cloud-guest-utils
+sudo growpart /dev/sda 1 || true
+sudo resize2fs /dev/sda1 || true
+sudo growpart /dev/nvme0n1 1 || true
+sudo resize2fs /dev/nvme0n1p1 || true
+
+# Clean old cache
 sudo apt-get clean || true
 sudo rm -rf /tmp/* || true
-docker builder prune -af || true
+docker system prune -af || true
 
 # 1. Install Docker & Docker Compose if not present
 if ! command -v docker &> /dev/null; then
-  echo "📦 1/5 Installing Docker & Docker Compose..."
-  sudo apt-get update -y
+  echo "📦 1/6 Installing Docker & Docker Compose..."
   sudo apt-get install -y ca-certificates curl gnupg git ufw
   curl -fsSL https://get.docker.com | sudo sh
   sudo usermod -aG docker $USER || true
@@ -22,7 +29,7 @@ if ! command -v docker &> /dev/null; then
 fi
 
 # 2. Configure Firewall
-echo "🛡️ 2/5 Configuring UFW Firewall ports..."
+echo "🛡️ 2/6 Configuring UFW Firewall ports..."
 sudo ufw allow 22/tcp || true
 sudo ufw allow 80/tcp || true
 sudo ufw allow 443/tcp || true
@@ -34,25 +41,33 @@ sudo ufw allow 3001/tcp || true
 
 # 3. Create .env if not exists
 if [ ! -f .env ]; then
-  echo "📝 3/5 Creating default .env from .env.example..."
+  echo "📝 3/6 Creating default .env from .env.example..."
   cp .env.example .env
   # Update default public URLs to GCP External IP
   sed -i "s|NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://34.126.172.168:4000/api|g" .env
   sed -i "s|NEXT_PUBLIC_WS_URL=.*|NEXT_PUBLIC_WS_URL=http://34.126.172.168:4000|g" .env
 fi
 
-# 4. Build and Launch Containers sequentially to save disk and memory
-echo "🐳 4/5 Starting Docker Compose Production Stack..."
-docker compose -f docker-compose.prod.yml up -d --build postgres redis minio uptime-kuma
+# 4. Build and Launch Containers sequentially to save RAM & avoid disk locks
+echo "🐳 4/6 Starting Database, Redis, MinIO & Monitoring Stack..."
+docker compose -f docker-compose.prod.yml up -d postgres redis minio uptime-kuma
 sleep 5
-docker compose -f docker-compose.prod.yml up -d --build api worker web
+
+echo "🔨 5/6 Building API, Worker, and Web Containers..."
+docker compose -f docker-compose.prod.yml build api
+docker compose -f docker-compose.prod.yml up -d api
+sleep 3
+docker compose -f docker-compose.prod.yml build worker
+docker compose -f docker-compose.prod.yml up -d worker
+sleep 3
+docker compose -f docker-compose.prod.yml build web
+docker compose -f docker-compose.prod.yml up -d web
 
 # 5. Run Database Migrations
-echo "🗄️ 5/5 Running Prisma Database Migrations..."
-sleep 8
+echo "🗄️ 6/6 Running Prisma Database Migrations..."
+sleep 6
 docker compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy || true
 
-# 6. Post-deploy cleanup
 docker builder prune -f || true
 
 echo "=========================================================="
