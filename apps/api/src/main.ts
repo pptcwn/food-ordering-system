@@ -61,9 +61,9 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   const port = process.env.PORT || 4000;
-  await app.listen(port);
-  logger.log(`🚀 NestJS API Gateway running on: http://localhost:${port}`);
-  logger.log(`📚 Swagger Documentation available at: http://localhost:${port}/docs`);
+  await app.listen(port, '0.0.0.0');
+  logger.log(`🚀 NestJS API Gateway running on: http://0.0.0.0:${port}`);
+  logger.log(`📚 Swagger Documentation available at: http://0.0.0.0:${port}/docs`);
 }
 
 bootstrap();
