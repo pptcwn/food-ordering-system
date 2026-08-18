@@ -67,14 +67,14 @@ jobs:
               sed -i "s|NEXT_PUBLIC_WS_URL=.*|NEXT_PUBLIC_WS_URL=http://${{ secrets.GCP_VM_HOST }}:4000|g" .env
             fi
             
-            # Rebuild and restart production containers
-            sudo docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+            # Rebuild and restart production containers (using non-sudo docker)
+            docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
             
             # Run database migrations
             sleep 6
-            sudo docker compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy || true
+            docker compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy || true
             
             # Clean unused images
-            sudo docker image prune -f || true
+            docker image prune -f || true
             
             echo "✅ Deployment finished successfully!"
