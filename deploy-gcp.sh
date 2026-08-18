@@ -5,24 +5,20 @@ echo "=========================================================="
 echo "🚀 Food Ordering System — GCP Compute Engine Deploy Script"
 echo "=========================================================="
 
-# 1. Update and install prerequisites
-echo "📦 1/5 Installing Docker, Docker Compose, Git, and Nginx..."
-sudo apt-get update -y
-sudo apt-get install -y ca-certificates curl gnupg lsb-release git ufw
+# Remove any broken docker apt repo from previous attempts
+sudo rm -f /etc/apt/sources.list.d/docker.list
 
-# Install Docker if not present
+# 1. Install Docker & Docker Compose via official Docker script (auto-detects Debian 12 / Ubuntu)
+echo "📦 1/5 Installing Docker & Docker Compose..."
 if ! command -v docker &> /dev/null; then
-  sudo install -m 0755 -d /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  sudo chmod a+r /etc/apt/keyrings/docker.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
   sudo apt-get update -y
-  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-  sudo usermod -aG docker $USER
+  sudo apt-get install -y ca-certificates curl gnupg git ufw
+  curl -fsSL https://get.docker.com | sudo sh
+  sudo usermod -aG docker $USER || true
 fi
 
 # 2. Configure Firewall
-echo "🛡️ 2/5 Configuring Firewall ports (80, 443, 3000, 4000, 9000, 9001, 3001)..."
+echo "🛡️ 2/5 Configuring UFW Firewall ports..."
 sudo ufw allow 22/tcp || true
 sudo ufw allow 80/tcp || true
 sudo ufw allow 443/tcp || true
