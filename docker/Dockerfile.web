@@ -22,10 +22,16 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
-COPY --from=builder /app/apps/web/.next ./.next
-COPY --from=builder /app/apps/web/public ./public
-COPY --from=builder /app/apps/web/package.json ./package.json
+
+# Create public directory if not exists
+RUN mkdir -p ./public
+
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/apps/web/.next ./apps/web/.next
+COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages ./packages
 
 EXPOSE 3000
-CMD ["pnpm", "start"]
+CMD ["pnpm", "--filter", "@food-ordering/web", "start"]
