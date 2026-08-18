@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   ChevronRight,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react';
 
 export default function OnboardingPage() {
@@ -27,7 +28,6 @@ export default function OnboardingPage() {
     setOrderType,
     setLocation,
     setActiveBranch,
-    activeBranchName,
   } = useAppStore();
 
   const [name, setName] = useState(customerName);
@@ -77,7 +77,7 @@ export default function OnboardingPage() {
         }
         setLocating(false);
       },
-      (err) => {
+      () => {
         setLocating(false);
         setErrorMsg('ไม่สามารถดึงตำแหน่ง GPS ได้ กรุณากรอกที่อยู่ด้วยตนเอง');
       },
@@ -120,7 +120,6 @@ export default function OnboardingPage() {
       };
       setLocation(locData);
 
-      // Attempt to persist to API if logged in
       try {
         await apiClient.put('/customers/profile', { name: cleanName, phone: cleanPhone });
         await apiClient.post('/customers/location', locData);
@@ -138,37 +137,41 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col justify-between p-5 pb-8">
-      {/* Header */}
+    <div className="flex-1 flex flex-col justify-between bg-slate-50 min-h-screen p-5 pb-8">
       <div>
-        <div className="flex items-center space-x-2 text-rose-600 mb-1">
-          <MapPin className="w-5 h-5" />
-          <span className="text-xs font-semibold uppercase tracking-wider">ขั้นตอนเริ่มต้น</span>
+        {/* Header Hero Banner */}
+        <div className="bg-gradient-to-r from-emerald-600 to-[#06C755] text-white p-5 rounded-2xl shadow-sm mb-5 relative overflow-hidden">
+          <div className="relative z-10">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-bold text-white mb-2">
+              <Sparkles className="w-3 h-3 text-amber-300" />
+              ยินดีต้อนรับสู่ระบบสั่งอาหาร
+            </div>
+            <h1 className="text-xl font-bold leading-tight">
+              ระบุข้อมูลผู้รับ & จุดส่งอาหาร
+            </h1>
+            <p className="text-xs text-white/90 mt-1">
+              กรอกข้อมูลเพื่อรับบริการจัดส่งอาหารด่วนและสะสมแต้ม
+            </p>
+          </div>
         </div>
-        <h1 className="text-2xl font-bold text-zinc-900 leading-tight">
-          ข้อมูลการติดต่อ & จุดจัดส่ง
-        </h1>
-        <p className="text-sm text-zinc-500 mt-1">
-          กรุณากรอกชื่อ เบอร์โทร และระบุจุดส่งอาหารก่อนเริ่มเลือกเมนู
-        </p>
 
         {errorMsg && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center space-x-2 text-red-600 text-sm">
+          <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-700 text-xs">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{errorMsg}</span>
           </div>
         )}
 
-        <form onSubmit={handleSaveAndProceed} className="mt-6 space-y-4">
-          {/* Order Type Toggle */}
-          <div className="grid grid-cols-2 gap-3 p-1 bg-zinc-100 rounded-2xl">
+        <form onSubmit={handleSaveAndProceed} className="space-y-4">
+          {/* Delivery Type Toggle (LINE MAN style) */}
+          <div className="grid grid-cols-2 gap-2 p-1.5 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
             <button
               type="button"
               onClick={() => setType('DELIVERY')}
-              className={`flex items-center justify-center space-x-2 py-3 rounded-xl font-medium text-sm transition-all ${
+              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs transition-all btn-tactile ${
                 type === 'DELIVERY'
-                  ? 'bg-white text-rose-600 shadow-sm'
-                  : 'text-zinc-500 hover:text-zinc-900'
+                  ? 'bg-[#06C755] text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 bg-slate-50'
               }`}
             >
               <Bike className="w-4 h-4" />
@@ -177,10 +180,10 @@ export default function OnboardingPage() {
             <button
               type="button"
               onClick={() => setType('PICKUP')}
-              className={`flex items-center justify-center space-x-2 py-3 rounded-xl font-medium text-sm transition-all ${
+              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs transition-all btn-tactile ${
                 type === 'PICKUP'
-                  ? 'bg-white text-rose-600 shadow-sm'
-                  : 'text-zinc-500 hover:text-zinc-900'
+                  ? 'bg-[#06C755] text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 bg-slate-50'
               }`}
             >
               <Store className="w-4 h-4" />
@@ -189,91 +192,91 @@ export default function OnboardingPage() {
           </div>
 
           {/* Customer Name */}
-          <div>
-            <label className="block text-xs font-semibold text-zinc-700 uppercase mb-1.5">
-              ชื่อผู้รับ / ผู้สั่งซื้อ *
-            </label>
-            <div className="relative">
-              <User className="w-5 h-5 text-zinc-400 absolute left-3.5 top-3.5" />
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="เช่น บีม หรือ คุณสมชาย"
-                className="w-full pl-11 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition"
-              />
+          <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                ชื่อผู้รับ / ผู้สั่งซื้อ *
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="เช่น คุณบีม หรือ คุณสมชาย"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:bg-white transition-all"
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Customer Phone */}
-          <div>
-            <label className="block text-xs font-semibold text-zinc-700 uppercase mb-1.5">
-              เบอร์โทรศัพท์ติดต่อ *
-            </label>
-            <div className="relative">
-              <Phone className="w-5 h-5 text-zinc-400 absolute left-3.5 top-3.5" />
-              <input
-                type="tel"
-                required
-                maxLength={10}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="0812345678"
-                className="w-full pl-11 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition font-mono"
-              />
+            {/* Customer Phone */}
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1.5">
+                เบอร์โทรศัพท์ติดต่อ *
+              </label>
+              <div className="relative">
+                <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
+                <input
+                  type="tel"
+                  required
+                  maxLength={10}
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="0812345678"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:bg-white transition-all font-mono"
+                />
+              </div>
             </div>
           </div>
 
           {/* Location & Address Section (if Delivery) */}
           {type === 'DELIVERY' && (
-            <div className="space-y-3 pt-2">
+            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
-                <label className="block text-xs font-semibold text-zinc-700 uppercase">
+                <label className="block text-xs font-bold text-slate-800">
                   ที่อยู่และจุดปักหมุดจัดส่ง *
                 </label>
                 <button
                   type="button"
                   onClick={handleGetCurrentLocation}
                   disabled={locating}
-                  className="text-xs text-rose-600 font-semibold flex items-center space-x-1 hover:underline"
+                  className="text-xs text-[#06C755] font-bold flex items-center gap-1 hover:underline btn-tactile"
                 >
                   <Navigation className={`w-3.5 h-3.5 ${locating ? 'animate-spin' : ''}`} />
                   <span>{locating ? 'กำลังหาพิกัด...' : 'ใช้พิกัดปัจจุบัน (GPS)'}</span>
                 </button>
               </div>
 
-              <div className="relative">
-                <textarea
-                  rows={2}
-                  required
-                  value={addressLine}
-                  onChange={(e) => setAddressLine(e.target.value)}
-                  placeholder="กรอกบ้านเลขที่, ชื่อคอนโด/ตึก, ซอย, ถนน หรือจุดสังเกต"
-                  className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition resize-none"
-                />
-              </div>
+              <textarea
+                rows={2}
+                required
+                value={addressLine}
+                onChange={(e) => setAddressLine(e.target.value)}
+                placeholder="กรอกบ้านเลขที่, ชื่อคอนโด/ตึก, ซอย, ถนน หรือจุดสังเกต"
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:bg-white transition-all resize-none"
+              />
 
               <input
                 type="text"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="หมายเหตุเพิ่มเติมถึงไรเดอร์ (เช่น วางไว้หน้าประตู)"
-                className="w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition"
+                placeholder="หมายเหตุเพิ่มเติมถึงไรเดอร์ (เช่น ฝากไว้ที่ป้อม รปภ.)"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:bg-white transition-all"
               />
 
               {/* Nearest Branch Card */}
               {nearestBranchInfo && (
-                <div className="p-3 bg-rose-50/70 border border-rose-100 rounded-xl flex items-center justify-between text-xs">
+                <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl flex items-center justify-between text-xs">
                   <div>
-                    <span className="font-semibold text-zinc-800">
+                    <span className="font-bold text-slate-800">
                       สาขาที่จัดส่ง: {nearestBranchInfo.name}
                     </span>
-                    <p className="text-zinc-500">
-                      ระยะทาง: ~{nearestBranchInfo.distanceKm} กม. | ค่าส่ง ฿30
+                    <p className="text-slate-500 mt-0.5 text-[11px]">
+                      ระยะทาง: ~{nearestBranchInfo.distanceKm} กม. | ค่าส่ง ฿0 (ส่งฟรี)
                     </p>
                   </div>
-                  <CheckCircle2 className="w-5 h-5 text-rose-600 flex-shrink-0" />
+                  <CheckCircle2 className="w-5 h-5 text-[#06C755] flex-shrink-0" />
                 </div>
               )}
             </div>
@@ -282,14 +285,14 @@ export default function OnboardingPage() {
       </div>
 
       {/* Action CTA Button */}
-      <div className="pt-6">
+      <div className="pt-4">
         <button
           type="button"
           onClick={handleSaveAndProceed}
-          className="w-full py-4 bg-rose-600 text-white font-semibold text-base rounded-2xl shadow-lg shadow-rose-600/30 flex items-center justify-center space-x-2 hover:bg-rose-700 active:scale-[0.98] transition"
+          className="w-full py-3.5 bg-[#06C755] hover:bg-[#05A848] text-white font-bold text-sm rounded-xl shadow-md flex items-center justify-center gap-2 transition-colors btn-tactile"
         >
-          <span>เข้าสู่เมนูอาหาร (Browse Menu)</span>
-          <ChevronRight className="w-5 h-5" />
+          <span>เข้าสู่เมนูอาหาร</span>
+          <ChevronRight className="w-4 h-4" />
         </button>
       </div>
     </div>
