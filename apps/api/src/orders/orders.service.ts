@@ -13,6 +13,7 @@ import {
   OrderStatus,
   PaymentStatus,
   QUEUE_NAMES,
+  UserRole
 } from '@food-ordering/types';
 import { APP_CONFIG } from '@food-ordering/config';
 

@@ -59,3 +59,41 @@ export const UpdateProductAvailabilitySchema = z.object({
   isAvailable: z.boolean(),
 });
 export type UpdateProductAvailabilityDto = z.infer<typeof UpdateProductAvailabilitySchema>;
+
+// Category Admin Validation
+export const CreateCategorySchema = z.object({
+  name: z.string().min(1, 'Category name is required').max(100),
+  description: z.string().optional(),
+  imageUrl: z.string().url().optional(),
+  sortOrder: z.number().int().optional(),
+});
+export type CreateCategoryDtoType = z.infer<typeof CreateCategorySchema>;
+
+export const UpdateCategorySchema = CreateCategorySchema.partial().extend({
+  isActive: z.boolean().optional()
+});
+export type UpdateCategoryDtoType = z.infer<typeof UpdateCategorySchema>;
+
+// Product Admin Validation
+export const CreateProductSchema = z.object({
+  categoryId: z.string().uuid('Invalid Category ID'),
+  branchId: z.string().uuid().optional(),
+  name: z.string().min(1, 'Product name is required').max(150),
+  description: z.string().optional(),
+  imageUrl: z.string().url('Invalid Image URL').optional().or(z.literal('')),
+  basePrice: z.number().min(0, 'Price must be >= 0'),
+  isAvailable: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+  variants: z.array(z.object({
+    name: z.string(),
+    price: z.number(),
+    isDefault: z.boolean().optional()
+  })).optional(),
+  modifierGroupIds: z.array(z.string().uuid()).optional(),
+});
+export type CreateProductDtoType = z.infer<typeof CreateProductSchema>;
+
+export const UpdateProductSchema = CreateProductSchema.partial().extend({
+  isActive: z.boolean().optional()
+});
+export type UpdateProductDtoType = z.infer<typeof UpdateProductSchema>;

@@ -1,31 +1,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsGateway } from '../websocket/events.gateway';
-
-export interface CreateProductDto {
-  categoryId: string;
-  branchId?: string;
-  name: string;
-  description?: string;
-  imageUrl?: string;
-  basePrice: number;
-  isAvailable?: boolean;
-  sortOrder?: number;
-  variants?: { name: string; price: number; isDefault?: boolean }[];
-  modifierGroupIds?: string[];
-}
-
-export interface UpdateProductDto {
-  categoryId?: string;
-  branchId?: string;
-  name?: string;
-  description?: string;
-  imageUrl?: string;
-  basePrice?: number;
-  isAvailable?: boolean;
-  isActive?: boolean;
-  sortOrder?: number;
-}
+import { CreateProductDtoType as CreateProductDto, UpdateProductDtoType as UpdateProductDto } from '@food-ordering/validation';
 
 @Injectable()
 export class ProductsService {
@@ -195,9 +171,15 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
+    const { variants, modifierGroupIds, branchId, ...updateData } = dto;
+    
+    // Convert undefined to null or omit for Prisma depending on schema, but omit is safer
+    const dataToUpdate: any = { ...updateData };
+    if (branchId !== undefined) dataToUpdate.branchId = branchId;
+
     return this.prisma.product.update({
       where: { id },
-      data: dto,
+      data: dataToUpdate,
     });
   }
 

@@ -9,15 +9,25 @@ import {
   Query,
   UseGuards,
   Req,
+  UsePipes,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { ProductsService, CreateProductDto, UpdateProductDto } from './products.service';
+import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '@food-ordering/types';
 import { Request } from 'express';
 import { requireBranchAccess } from '../common/authz/branch-access';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import { 
+  CreateProductSchema, 
+  UpdateProductSchema, 
+  CreateProductDtoType, 
+  UpdateProductDtoType,
+  UpdateProductAvailabilitySchema,
+  UpdateProductAvailabilityDto
+} from '@food-ordering/validation';
 
 export class UpdateAvailabilityDto {
   isAvailable: boolean;
@@ -45,10 +55,11 @@ export class ProductsController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.BRANCH_MANAGER, UserRole.KITCHEN)
+  @UsePipes(new ZodValidationPipe(UpdateProductAvailabilitySchema))
   @ApiOperation({ summary: 'Realtime Sold-Out / Availability Toggle (Kitchen/Admin)' })
   async updateAvailability(
     @Param('id') id: string,
-    @Body() dto: UpdateAvailabilityDto,
+    @Body() dto: UpdateProductAvailabilityDto,
     @Req() req?: Request,
   ) {
     const product = await this.productsService.getProductById(id);
@@ -60,8 +71,9 @@ export class ProductsController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @UsePipes(new ZodValidationPipe(CreateProductSchema))
   @ApiOperation({ summary: 'Create new product with variants and modifiers (Admin)' })
-  async create(@Body() dto: CreateProductDto, @Req() req?: Request) {
+  async create(@Body() dto: CreateProductDtoType, @Req() req?: Request) {
     requireBranchAccess((req as any).user, dto.branchId);
     return this.productsService.create(dto);
   }
@@ -70,8 +82,9 @@ export class ProductsController {
   @ApiBearerAuth('JWT-auth')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
+  @UsePipes(new ZodValidationPipe(UpdateProductSchema))
   @ApiOperation({ summary: 'Update product information (Admin)' })
-  async update(@Param('id') id: string, @Body() dto: UpdateProductDto, @Req() req?: Request) {
+  async update(@Param('id') id: string, @Body() dto: UpdateProductDtoType, @Req() req?: Request) {
     const product = await this.productsService.getProductById(id);
     requireBranchAccess((req as any).user, product.branchId);
     return this.productsService.update(id, dto);
