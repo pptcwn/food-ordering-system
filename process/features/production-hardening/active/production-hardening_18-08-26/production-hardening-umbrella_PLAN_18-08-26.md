@@ -64,12 +64,12 @@ START: Phase 01, RESEARCH. Every subagent first runs vc-context-discovery and vc
 
 ## Current Execution State
 
-- Current phase: 02 of 08 — Payment safety
+- Current phase: 03 of 08 — API contract/validation
 - Current loop step: RESEARCH
 - Phase status: ⏳ PLANNED
 - Validate-contract status: pending
 - Program net gate: PENDING
-- Next and only selected action: run fresh research for `phase-02-payment-safety_PLAN_18-08-26.md`; do not execute any phase yet.
+- Next and only selected action: run fresh research for `phase-03-api-contract-validation_PLAN_18-08-26.md`; do not execute any phase yet.
 
 ## Phase Loop Progress
 
@@ -87,11 +87,11 @@ Every phase follows `R → I → P → PVL → E → EVL → UP`; later phases r
 
 ## Resume and Execution Handoff
 
-- Selected plan: `process/features/production-hardening/active/production-hardening_18-08-26/phase-02-payment-safety_PLAN_18-08-26.md`
-- Last completed: Phase 01 EXECUTE and process update.
-- Validate contract: pending for Phase 02.
+- Selected plan: `process/features/production-hardening/active/production-hardening_18-08-26/phase-03-api-contract-validation_PLAN_18-08-26.md`
+- Last completed: Phase 02 EXECUTE and process update.
+- Validate contract: pending for Phase 03.
 - Context loaded: frozen SPEC, `all-context.md`, development protocols, plan templates.
-- Fresh-agent next step: re-read Phase 02 and current payment/QR models, then report research; do not infer a different phase.
+- Fresh-agent next step: re-read Phase 03 and current API request/response validation logic, then report research; do not infer a different phase.
 
 ## Validate Contract
 
