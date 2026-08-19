@@ -5,6 +5,13 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting database seed...');
 
+  // 0. Idempotency Check
+  const existingBranch = await prisma.branch.findUnique({ where: { code: 'BKK-RAMA9' } });
+  if (existingBranch) {
+    console.log('🌱 Database already seeded. Skipping...');
+    return;
+  }
+
   // 1. Create Super Admin User
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@foodordering.com' },
