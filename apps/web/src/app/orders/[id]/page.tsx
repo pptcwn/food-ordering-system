@@ -30,6 +30,7 @@ import {
   RotateCcw,
   Sparkles,
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 const STATUS_CONFIG: Record<string, { title: string; subtitle: string; icon: any; step: number; color: string; badgeBg: string; badgeText: string }> = {
   PENDING_PAYMENT: {
@@ -135,6 +136,13 @@ export default function OrderDetailPage() {
       const status = query.state.data?.orderStatus;
       return status === 'DELIVERED' || status === 'COMPLETED' || status === 'CANCELLED' ? false : 3000;
     },
+  });
+
+  // Fetch QR Payload
+  const { data: qrData } = useQuery<any>({
+    queryKey: ['order', orderId, 'qr'],
+    queryFn: () => apiClient.get(`/orders/${orderId}/payment/qr`),
+    enabled: !!order && order.orderStatus === 'PENDING_PAYMENT',
   });
 
   // Realtime Socket listener
@@ -408,13 +416,20 @@ export default function OrderDetailPage() {
 
             {/* QR Code Container */}
             <div className="flex flex-col items-center py-4">
-              <div className="p-3 bg-white border-2 border-slate-900 rounded-2xl shadow-sm mb-3 relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=00020101021129370016A000000677010111011300668123456785802TH5303764540${Number(order.totalAmount || 0).toFixed(2)}6304`}
-                  alt="PromptPay QR Code"
-                  className="w-44 h-44 object-contain"
-                />
+              <div className="p-3 bg-white border-2 border-slate-900 rounded-2xl shadow-sm mb-3 relative flex justify-center items-center w-52 h-52">
+                {qrData?.payload ? (
+                  <QRCodeSVG
+                    value={qrData.payload}
+                    size={176}
+                    level="M"
+                    includeMargin={false}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-slate-400 gap-2">
+                    <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
+                    <span className="text-xs">กำลังสร้าง QR Code...</span>
+                  </div>
+                )}
                 <div className="absolute inset-x-0 bottom-2 text-center pointer-events-none">
                   <span className="text-[9px] bg-slate-900/90 text-white px-2 py-0.5 rounded-full font-mono">
                     PromptPay Official

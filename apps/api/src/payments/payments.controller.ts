@@ -56,6 +56,12 @@ export class PaymentsController {
     return this.paymentsService.getPaymentDetails(orderId, (req as any).user.id);
   }
 
+  @Get('qr')
+  @ApiOperation({ summary: 'Get PromptPay QR payload for order payment' })
+  async getQrPayload(@Param('id') orderId: string, @Req() req: Request) {
+    return this.paymentsService.generatePromptPayQrPayload(orderId, (req as any).user.id);
+  }
+
   @Post('dev/simulate')
   @ApiOperation({ summary: 'Development-only: mark an uploaded local demo slip as verified' })
   async simulateDevelopmentPayment(@Param('id') orderId: string, @Req() req: Request) {

@@ -17,6 +17,7 @@ import {
   QUEUE_NAMES,
 } from '@food-ordering/types';
 import { BUCKET_NAMES, APP_CONFIG } from '@food-ordering/config';
+import generatePayload from 'promptpay-qr';
 
 export interface UploadedFileDto {
   fieldname?: string;
@@ -329,6 +330,30 @@ export class PaymentsService {
       slips: slipsWithPresignedUrls,
     };
   }
+
+  /**
+   * Securely generate PromptPay QR payload string for a given order and branch
+   */
+  async generatePromptPayQrPayload(orderId: string, userId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, userId },
+      include: { branch: true },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (!order.branch.paymentReceiverValue) {
+      throw new BadRequestException('Branch does not have a configured PromptPay number');
+    }
+
+    const amount = Number(order.total);
+    const payload = generatePayload(order.branch.paymentReceiverValue, { amount });
+
+    return { payload };
+  }
+
   /**
    * Admin: list all payments with optional status filter (blueprint §32)
    */

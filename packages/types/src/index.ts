@@ -140,7 +140,7 @@ export interface Slip2GoVerifyResponse {
 // Slip Validation Result
 export interface SlipValidationResult {
   isValid: boolean;
-  errorCode?: 'SLIP_INVALID' | 'DUPLICATE_SLIP' | 'RECEIVER_MISMATCH' | 'AMOUNT_MISMATCH' | 'EXPIRED_TRANSFER_TIME' | 'ORDER_ALREADY_PAID';
+  errorCode?: 'SLIP_INVALID' | 'DUPLICATE_SLIP' | 'RECEIVER_MISMATCH' | 'AMOUNT_MISMATCH' | 'EXPIRED_TRANSFER_TIME' | 'ORDER_ALREADY_PAID' | 'BRANCH_RECEIVER_NOT_CONFIGURED';
   errorMessage?: string;
   transactionRef?: string;
   amount?: number;

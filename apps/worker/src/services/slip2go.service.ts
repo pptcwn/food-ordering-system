@@ -21,28 +21,10 @@ export class Slip2GoService {
   async verifySlip(imageBuffer: Buffer, filename = 'slip.jpg'): Promise<Slip2GoVerifyResponse> {
     try {
       if (!this.apiSecret) {
-        this.logger.warn('SLIP2GO_API_SECRET is not configured. Running in Mock/Simulated Verification mode.');
-        // Return simulated mock verified slip for local development/testing
+        this.logger.error('SLIP2GO_API_SECRET is not configured. Failing verification to prevent unauthorized payments.');
         return {
-          success: true,
-          data: {
-            transRef: `MOCK_REF_${Date.now()}`,
-            date: new Date().toISOString(),
-            amount: 0, // Will be dynamically checked or mocked
-            receiver: {
-              account: {
-                name: { th: 'นาย สั่งอาหาร ตัวอย่าง', en: 'FOOD ORDERING CO., LTD.' },
-                bank: 'KBANK',
-                promptpayNumber: '0812345678',
-              },
-            },
-            sender: {
-              account: {
-                name: { th: 'ลูกค้า ผู้โอน', en: 'CUSTOMER SENDER' },
-                bank: 'SCB',
-              },
-            },
-          },
+          success: false,
+          message: 'Server configuration error: SLIP2GO_API_SECRET missing',
         };
       }
 
@@ -85,9 +67,9 @@ export class Slip2GoService {
       };
     }
 
-    // 1. Amount Match Check (allow mock if amount is 0)
+    // 1. Amount Match Check
     const slipAmount = Number(slipData.amount);
-    if (slipAmount > 0 && Math.abs(slipAmount - orderTotal) > 0.01) {
+    if (Math.abs(slipAmount - orderTotal) > 0.01) {
       return {
         isValid: false,
         errorCode: 'AMOUNT_MISMATCH',
@@ -103,6 +85,28 @@ export class Slip2GoService {
         isValid: false,
         errorCode: 'EXPIRED_TRANSFER_TIME',
         errorMessage: 'เวลาที่โอนเงินเกิดขึ้นก่อนเวลาที่สร้างออเดอร์ (สลิปเก่า)',
+      };
+    }
+
+    // 3. Receiver Match Check
+    if (branchReceiverValue) {
+      // Slip2Go typically returns the PromptPay number or bank account in these fields
+      const slipPromptPay = slipData.receiver?.account?.promptpayNumber?.replace(/-/g, '');
+      const slipBankAccount = slipData.receiver?.account?.accountNumber?.replace(/-/g, '');
+      const expectedReceiver = branchReceiverValue.replace(/-/g, '');
+
+      if (slipPromptPay !== expectedReceiver && slipBankAccount !== expectedReceiver) {
+        return {
+          isValid: false,
+          errorCode: 'RECEIVER_MISMATCH',
+          errorMessage: 'บัญชีผู้รับเงินไม่ตรงกับบัญชีของสาขา',
+        };
+      }
+    } else {
+       return {
+        isValid: false,
+        errorCode: 'BRANCH_RECEIVER_NOT_CONFIGURED',
+        errorMessage: 'สาขายังไม่ได้ตั้งค่าบัญชีรับเงิน',
       };
     }
 
