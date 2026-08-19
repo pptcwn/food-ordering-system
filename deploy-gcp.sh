@@ -67,6 +67,7 @@ docker compose -f docker-compose.prod.yml up -d web
 echo "🗄️ 6/6 Running Prisma Database Migrations..."
 sleep 6
 docker compose -f docker-compose.prod.yml exec -T api npx prisma migrate deploy || true
+docker compose -f docker-compose.prod.yml exec -T api pnpm --filter @food-ordering/database run db:seed || true
 
 docker builder prune -f || true
 
