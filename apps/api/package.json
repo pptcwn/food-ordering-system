@@ -7,6 +7,7 @@
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
+    "test": "jest",
     "test:authz:preflight": "jest --config jest.authz.config.cjs --listTests",
     "test:authz": "jest --config jest.authz.config.cjs --runInBand"
   },
@@ -14,6 +15,7 @@
     "@food-ordering/config": "workspace:*",
     "@food-ordering/database": "workspace:*",
     "@food-ordering/types": "workspace:*",
+    "@food-ordering/validation": "workspace:^",
     "@nestjs/bullmq": "^10.2.3",
     "@nestjs/common": "^10.4.15",
     "@nestjs/config": "^3.3.0",
@@ -39,7 +41,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.1",
-    "uuid": "^11.0.5"
+    "uuid": "^11.0.5",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",

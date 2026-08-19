@@ -8,17 +8,25 @@ import {
   Query,
   Req,
   UseGuards,
+  UsePipes,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { Request } from 'express';
 import { ForbiddenException } from '@nestjs/common';
-import { OrdersService, CreateOrderDto, UpdateOrderStatusDto } from './orders.service';
+import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { OrderStatus, UserRole } from '@food-ordering/types';
 import { requireBranchAccess } from '../common/authz/branch-access';
+import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
+import {
+  CheckoutOrderDto,
+  CheckoutOrderSchema,
+  UpdateOrderStatusDto,
+  UpdateOrderStatusSchema,
+} from '@food-ordering/validation';
 
 @ApiTags('Orders')
 @ApiBearerAuth('JWT-auth')
@@ -29,9 +37,10 @@ export class OrdersController {
 
   @Post()
   @ApiOperation({ summary: 'Create order from active cart (Checkout)' })
+  @UsePipes(new ZodValidationPipe(CheckoutOrderSchema))
   async createOrder(
     @Req() req: Request,
-    @Body() dto: CreateOrderDto,
+    @Body() dto: CheckoutOrderDto,
   ) {
     const userId = (req as any).user?.id;
     return this.ordersService.createOrder(userId, dto);
@@ -81,6 +90,7 @@ export class OrdersController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.BRANCH_MANAGER, UserRole.KITCHEN, UserRole.DELIVERY)
   @ApiOperation({ summary: 'Update order lifecycle status (Admin, Kitchen, Delivery)' })
+  @UsePipes(new ZodValidationPipe(UpdateOrderStatusSchema))
   async updateOrderStatus(
     @Param('id') id: string,
     @Body() dto: UpdateOrderStatusDto,

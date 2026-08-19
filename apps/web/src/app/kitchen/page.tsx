@@ -208,7 +208,7 @@ export default function KitchenDashboardPage() {
                 >
                   <div>
                     <span className="text-xs font-mono font-black tracking-wider uppercase">
-                      #{order.orderNumber || order.id.slice(0, 6)}
+                      #{order.orderNo || order.id.slice(0, 6)}
                     </span>
                     <p className="text-xs font-bold mt-0.5">
                       {order.customerName} ({order.orderType === 'DELIVERY' ? '🛵 จัดส่ง' : '🏪 รับที่ร้าน'})

@@ -16,24 +16,7 @@ import {
 } from '@food-ordering/types';
 import { APP_CONFIG } from '@food-ordering/config';
 
-export interface CreateOrderDto {
-  branchId: string;
-  orderType: OrderType;
-  customerName: string;
-  customerPhone: string;
-  addressId?: string;
-  deliveryAddress?: string;
-  deliveryLatitude?: number;
-  deliveryLongitude?: number;
-  note?: string;
-  sessionId?: string;
-  couponCode?: string;
-}
-
-export interface UpdateOrderStatusDto {
-  status: OrderStatus;
-  reason?: string;
-}
+import { CheckoutOrderDto, UpdateOrderStatusDto } from '@food-ordering/validation';
 
 @Injectable()
 export class OrdersService {
@@ -67,7 +50,7 @@ export class OrdersService {
   /**
    * Create new Order from customer Cart with full business validation and DB transaction
    */
-  async createOrder(userId: string, dto: CreateOrderDto) {
+  async createOrder(userId: string, dto: CheckoutOrderDto) {
     // 1. Validate Customer Information
     const customerName = dto.customerName?.trim();
     if (!customerName) {

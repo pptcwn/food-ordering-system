@@ -204,7 +204,7 @@ export default function OrderDetailPage() {
   };
 
   const copyOrderRef = () => {
-    navigator.clipboard.writeText(order?.orderNumber || orderId);
+    navigator.clipboard.writeText(order?.orderNo || orderId);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -264,7 +264,7 @@ export default function OrderDetailPage() {
             onClick={copyOrderRef}
             className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-700 font-mono tracking-tight"
           >
-            #{order.orderNumber || orderId.slice(0, 8)}
+            #{order.orderNo || orderId.slice(0, 8)}
             <Copy className="w-2.5 h-2.5" />
             {copied && <span className="text-emerald-600 font-medium">คัดลอกแล้ว!</span>}
           </button>

@@ -160,7 +160,7 @@ export default function DeliveryDashboardPage() {
                         {order.customerName}
                       </span>
                       <span className="text-[10px] font-mono font-bold text-slate-400">
-                        #{order.orderNumber || order.id.slice(0, 6)}
+                        #{order.orderNo || order.id.slice(0, 6)}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">

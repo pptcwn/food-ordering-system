@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { OrderType, UserRole } from '@food-ordering/types';
+import { OrderType, UserRole, OrderStatus } from '@food-ordering/types';
 
 // Auth validation
 export const LoginAdminSchema = z.object({
@@ -42,8 +42,17 @@ export const CheckoutOrderSchema = z.object({
   deliveryLatitude: z.number().optional(),
   deliveryLongitude: z.number().optional(),
   note: z.string().max(500).optional(),
+  sessionId: z.string().optional(),
+  couponCode: z.string().optional(),
 });
 export type CheckoutOrderDto = z.infer<typeof CheckoutOrderSchema>;
+
+// Order Status Update validation
+export const UpdateOrderStatusSchema = z.object({
+  status: z.nativeEnum(OrderStatus),
+  reason: z.string().max(500).optional(),
+});
+export type UpdateOrderStatusDto = z.infer<typeof UpdateOrderStatusSchema>;
 
 // Product Availability Toggle validation
 export const UpdateProductAvailabilitySchema = z.object({

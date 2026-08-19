@@ -195,7 +195,7 @@ export default function CustomerOrdersHistoryPage() {
                         {order.branch?.name || 'ร้านอาหารหลัก'}
                       </h4>
                       <p className="text-[11px] text-slate-400 font-mono">
-                        #{order.orderNumber || order.id.slice(0, 8)} •{' '}
+                        #{order.orderNo || order.id.slice(0, 8)} •{' '}
                         {new Date(order.createdAt).toLocaleDateString('th-TH', {
                           day: 'numeric',
                           month: 'short',
