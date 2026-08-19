@@ -54,7 +54,7 @@ food-ordering/
   - **LINE**: LIFF SDK, LINE Messaging API, LINE Login / ID Token verification, LINE Webhooks
   - **Slip2Go**: Automated bank transfer slip OCR verification
   - **Telegram Bot API**: Instant order alerts sent to branch-specific and HQ chat groups
-- **Infrastructure**: Docker Compose, Nginx Reverse Proxy, Ubuntu VPS
+  - **Infrastructure**: Google Cloud Compute Engine (GCP VM), Docker Compose, GitHub Actions CI/CD
 
 ---
 
@@ -94,3 +94,7 @@ food-ordering/
 | BullMQ Worker | `apps/worker/src/` |
 | Next.js Frontend | `apps/web/src/` |
 | Environment & Docker | `docker-compose.yml`, `.env.example` |
+
+## Testing and Quality
+Please refer to process/context/tests/all-tests.md for the comprehensive testing strategy, runner configurations, required services, and the AC15 critical flow E2E regression suite. Tests are fully automated in the CI pipeline (GitHub Actions).
+
