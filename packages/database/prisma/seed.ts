@@ -15,12 +15,15 @@ async function main() {
   // 1. Create Super Admin User
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@foodordering.com' },
-    update: {},
+    update: {
+      passwordHash: '$2b$12$Ba8e3pT0GuLf7ITLS0x7oetWRK1Rt5qmRRStAVdGVgN3rLp2Mrtoy'
+    },
     create: {
       email: 'admin@foodordering.com',
       name: 'System Admin',
       phone: '0812345678',
       role: UserRole.SUPER_ADMIN,
+      passwordHash: '$2b$12$Ba8e3pT0GuLf7ITLS0x7oetWRK1Rt5qmRRStAVdGVgN3rLp2Mrtoy'
     },
   });
   console.log('✅ Created Super Admin:', adminUser.email);
