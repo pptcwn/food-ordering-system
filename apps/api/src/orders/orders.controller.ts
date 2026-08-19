@@ -98,7 +98,8 @@ export class OrdersController {
     @Req() req?: Request,
   ) {
     const order = await this.ordersService.getOrderForStaff(id);
-    requireBranchAccess((req as any).user, order.branchId);
-    return this.ordersService.updateOrderStatus(id, dto, userName || 'ADMIN');
+    const user = (req as any).user;
+    requireBranchAccess(user, order.branchId);
+    return this.ordersService.updateOrderStatus(id, dto, userName || 'ADMIN', user.role);
   }
 }

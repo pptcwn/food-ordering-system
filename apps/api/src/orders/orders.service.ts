@@ -17,6 +17,7 @@ import {
 import { APP_CONFIG } from '@food-ordering/config';
 
 import { CheckoutOrderDto, UpdateOrderStatusDto } from '@food-ordering/validation';
+import { OrderLifecycleService } from './order-lifecycle.service';
 
 @Injectable()
 export class OrdersService {
@@ -25,6 +26,7 @@ export class OrdersService {
   constructor(
     private prisma: PrismaService,
     private eventsGateway: EventsGateway,
+    private orderLifecycleService: OrderLifecycleService,
     @InjectQueue(QUEUE_NAMES.ORDER_EVENTS) private orderEventsQueue: Queue,
     @InjectQueue(QUEUE_NAMES.ORDER_EXPIRATION) private orderExpirationQueue: Queue,
     @InjectQueue(QUEUE_NAMES.NOTIFICATIONS) private notificationsQueue: Queue,
@@ -94,7 +96,11 @@ export class OrdersService {
     });
 
     if (!branch || !branch.isActive) {
-      throw new BadRequestException('The selected branch is currently closed or inactive');
+      throw new BadRequestException({
+        code: 'BRANCH_CLOSED',
+        message: 'สาขาที่คุณเลือกปิดให้บริการชั่วคราว กรุณาเปลี่ยนสาขาหรือสั่งใหม่ในภายหลัง',
+        nextAction: 'CHANGE_BRANCH'
+      });
     }
 
     // 4. Strict Re-validation of Product Availability (Sold-Out Gate)
@@ -443,11 +449,18 @@ export class OrdersService {
   /**
    * Admin / Kitchen Manual Status Update (PREPARING, READY, CANCELLED, etc.)
    */
-  async updateOrderStatus(id: string, dto: UpdateOrderStatusDto, changedBy = 'ADMIN') {
+  async updateOrderStatus(id: string, dto: UpdateOrderStatusDto, changedBy: string, userRole: UserRole) {
     const order = await this.prisma.order.findUnique({ where: { id } });
     if (!order) {
       throw new NotFoundException('Order not found');
     }
+
+    this.orderLifecycleService.assertValidTransition(
+      order.orderStatus as OrderStatus,
+      dto.status,
+      userRole,
+      order.orderType as OrderType,
+    );
 
     const previousStatus = order.orderStatus;
     const timestamps: any = {};
