@@ -12,6 +12,10 @@ export function getSocket(): Socket {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
+      auth: (cb) => {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+        cb({ token });
+      }
     });
   }
   return socket!;

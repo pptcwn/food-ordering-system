@@ -149,7 +149,7 @@ export default function OrderDetailPage() {
   useEffect(() => {
     const socket = getSocket();
     if (order?.branchId) {
-      socket.emit('join_branch', { branchId: order.branchId });
+      socket.emit('join_order', { orderId: order.id });
     }
 
     socket.on(WS_EVENTS.ORDER_STATUS_CHANGED, (payload: any) => {
