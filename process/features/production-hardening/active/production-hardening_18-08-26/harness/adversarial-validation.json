@@ -1,0 +1,19 @@
+{
+  "scenarios": [
+    {
+      "scenario": "A fail-open auth change is made without exercising absent, malformed, expired, and fallback-secret tokens.",
+      "ruled_out": false,
+      "rationale": "The mandatory isolated runner and generated-JWT fixture do not exist in this environment, so this attack path cannot be proven safe."
+    },
+    {
+      "scenario": "A rejected foreign-order slip upload writes an object before ownership is checked.",
+      "ruled_out": false,
+      "rationale": "No fake or disposable storage spy exists, so the mandatory no-write assertion cannot be run."
+    },
+    {
+      "scenario": "The live smoke script mutates a remote system during verification.",
+      "ruled_out": true,
+      "rationale": "test_smoke.ts was not run and no HTTP request or provider call was made."
+    }
+  ]
+}

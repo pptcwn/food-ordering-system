@@ -1,0 +1,22 @@
+{
+  "snippets": [
+    {
+      "file": "process/features/production-hardening/active/production-hardening_18-08-26/phase-01-identity-access_PLAN_18-08-26.md",
+      "lines": "162-167",
+      "description": "The approved validate contract requires discovery of a local Node/pnpm executable and a disposable fixture before any source edit.",
+      "content": "Resolve the actual local Node and pnpm executables; select the runner only from that discovery; create only disposable Postgres, Redis, and fake storage fixtures."
+    },
+    {
+      "file": "apps/api/package.json",
+      "lines": "5-10",
+      "description": "The API package exposes build and start scripts but no test script or test-runner configuration.",
+      "content": "scripts contains build, dev, start, and start:prod only."
+    },
+    {
+      "file": "process/features/production-hardening/active/production-hardening_18-08-26/phase-01-identity-access_PLAN_18-08-26.md",
+      "lines": "169-174",
+      "description": "The contract prohibits live targets and mutable smoke testing.",
+      "content": "Do not run test_smoke.ts or use shared/staging/production services; fixture uncertainty is a hard stop."
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "riskClass": "auth or identity",
+  "workDescription": "Phase 01 identity, authorization, ownership, and branch-scope hardening.",
+  "approver": "vc-execute-agent discovery gate",
+  "mustStopBeforeFinalize": true
+}
