@@ -10,6 +10,34 @@ jobs:
   test-and-verify:
     name: 🧪 Verify & Typecheck
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres123
+          POSTGRES_DB: food_ordering_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres123@localhost:5432/food_ordering_test?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      REDIS_URL: redis://localhost:6379
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -40,6 +68,14 @@ jobs:
         run: |
           pnpm --filter @food-ordering/api exec tsc --noEmit
           pnpm --filter @food-ordering/web exec tsc --noEmit
+
+      - name: Prepare Test Database
+        run: |
+          pnpm --filter @food-ordering/database run db:push
+          pnpm --filter @food-ordering/database run db:seed
+
+      - name: Run Automated Tests
+        run: pnpm test
 
   deploy-to-gcp:
     name: 🚀 Deploy to Google Cloud Compute Engine
