@@ -25,8 +25,7 @@ export class CartService {
   /**
    * Find or create an active cart for user or guest session
    */
-  async getOrCreateCart(userId?: string, branchId?: string, sessionId?: string) {
-    if (userId) {
+  async getOrCreateCart(userId: string, branchId?: string) {
       let cart = await this.prisma.cart.findFirst({
         where: { userId },
         include: {
@@ -63,61 +62,14 @@ export class CartService {
       }
 
       return cart;
-    }
-
-    if (sessionId) {
-      let cart = await this.prisma.cart.findUnique({
-        where: { sessionId },
-        include: {
-          items: {
-            include: {
-              product: true,
-              variant: true,
-              modifiers: {
-                include: { modifier: true },
-              },
-            },
-          },
-        },
-      });
-
-      if (!cart && branchId) {
-        cart = await this.prisma.cart.create({
-          data: {
-            sessionId,
-            branchId,
-          },
-          include: {
-            items: {
-              include: {
-                product: true,
-                variant: true,
-                modifiers: {
-                  include: { modifier: true },
-                },
-              },
-            },
-          },
-        });
-      }
-
-      return cart;
-    }
-
-    return null;
   }
 
   /**
    * Get calculated cart with total and availability checks
    */
-  async getCart(userId?: string, sessionId?: string) {
+  async getCart(userId: string) {
     const cart = await this.prisma.cart.findFirst({
-      where: {
-        OR: [
-          ...(userId ? [{ userId }] : []),
-          ...(sessionId ? [{ sessionId }] : []),
-        ],
-      },
+      where: { userId },
       include: {
         branch: true,
         items: {
@@ -208,7 +160,7 @@ export class CartService {
   /**
    * Add Item to Cart with strict price calculation and availability checks
    */
-  async addItem(userId: string | undefined, dto: AddItemToCartDto) {
+  async addItem(userId: string, dto: AddItemToCartDto) {
     // 1. Verify Product exists and is Available
     const product = await this.prisma.product.findUnique({
       where: { id: dto.productId },
@@ -261,12 +213,7 @@ export class CartService {
 
     // 4. Get or Create Cart (Ensure Cart belongs to the requested branch)
     let cart = await this.prisma.cart.findFirst({
-      where: {
-        OR: [
-          ...(userId ? [{ userId }] : []),
-          ...(dto.sessionId ? [{ sessionId: dto.sessionId }] : []),
-        ],
-      },
+      where: { userId },
     });
 
     if (cart && cart.branchId !== dto.branchId) {
@@ -280,7 +227,6 @@ export class CartService {
       cart = await this.prisma.cart.create({
         data: {
           userId,
-          sessionId: dto.sessionId,
           branchId: dto.branchId,
         },
       });
@@ -311,15 +257,15 @@ export class CartService {
       },
     });
 
-    return this.getCart(userId, dto.sessionId);
+    return this.getCart(userId);
   }
 
   /**
    * Update Cart Item quantity or note
    */
-  async updateItem(itemId: string, dto: UpdateCartItemDto, userId?: string, sessionId?: string) {
-    const item = await this.prisma.cartItem.findUnique({
-      where: { id: itemId },
+  async updateItem(itemId: string, dto: UpdateCartItemDto, userId: string) {
+    const item = await this.prisma.cartItem.findFirst({
+      where: { id: itemId, cart: { userId } },
       include: { product: true },
     });
 
@@ -339,31 +285,26 @@ export class CartService {
       });
     }
 
-    return this.getCart(userId, sessionId);
+    return this.getCart(userId);
   }
 
   /**
    * Remove item from cart
    */
-  async removeItem(itemId: string, userId?: string, sessionId?: string) {
+  async removeItem(itemId: string, userId: string) {
     await this.prisma.cartItem.deleteMany({
-      where: { id: itemId },
+      where: { id: itemId, cart: { userId } },
     });
 
-    return this.getCart(userId, sessionId);
+    return this.getCart(userId);
   }
 
   /**
    * Clear all items in cart
    */
-  async clearCart(userId?: string, sessionId?: string) {
+  async clearCart(userId: string) {
     const cart = await this.prisma.cart.findFirst({
-      where: {
-        OR: [
-          ...(userId ? [{ userId }] : []),
-          ...(sessionId ? [{ sessionId }] : []),
-        ],
-      },
+      where: { userId },
     });
 
     if (cart) {

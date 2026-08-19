@@ -6,42 +6,39 @@ import {
   Param,
   Body,
   Query,
-  Headers,
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiHeader } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { Request } from 'express';
+import { ForbiddenException } from '@nestjs/common';
 import { OrdersService, CreateOrderDto, UpdateOrderStatusDto } from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { OrderStatus, UserRole } from '@food-ordering/types';
+import { requireBranchAccess } from '../common/authz/branch-access';
 
 @ApiTags('Orders')
+@ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard)
 @Controller('orders')
 export class OrdersController {
   constructor(private ordersService: OrdersService) {}
 
   @Post()
   @ApiOperation({ summary: 'Create order from active cart (Checkout)' })
-  @ApiHeader({ name: 'x-session-id', required: false })
   async createOrder(
     @Req() req: Request,
     @Body() dto: CreateOrderDto,
-    @Headers('x-session-id') sessionId?: string,
   ) {
     const userId = (req as any).user?.id;
-    return this.ordersService.createOrder(userId, {
-      ...dto,
-      sessionId: dto.sessionId || sessionId,
-    });
+    return this.ordersService.createOrder(userId, dto);
   }
 
   @Get('my-orders')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Get order history for current customer' })
   async getCustomerOrders(@CurrentUser('id') userId: string) {
     return this.ordersService.getCustomerOrders(userId);
@@ -49,19 +46,19 @@ export class OrdersController {
 
   @Get(':id/status')
   @ApiOperation({ summary: 'Lightweight order status check for LIFF customer tracking' })
-  async getOrderStatus(@Param('id') id: string) {
-    return this.ordersService.getOrderStatus(id);
+  async getOrderStatus(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    return this.ordersService.getOrderStatus(id, userId);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get full order details with items and payment status' })
-  async getOrderById(@Param('id') id: string) {
-    return this.ordersService.getOrderById(id);
+  async getOrderById(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    return this.ordersService.getOrderById(id, userId);
   }
 
   @Get('admin/all')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.BRANCH_MANAGER, UserRole.KITCHEN)
   @ApiOperation({ summary: 'Admin/Kitchen list all orders with filters' })
   @ApiQuery({ name: 'branchId', required: false, type: String })
@@ -69,20 +66,29 @@ export class OrdersController {
   async getAdminOrders(
     @Query('branchId') branchId?: string,
     @Query('status') status?: OrderStatus,
+    @Req() req?: Request,
   ) {
-    return this.ordersService.getAdminOrders(branchId, status);
+    const user = (req as any).user;
+    const staffBranchId = user.staff?.branchId;
+    if (user.role !== UserRole.SUPER_ADMIN && (!staffBranchId || (branchId && branchId !== staffBranchId))) {
+      throw new ForbiddenException('Branch access denied');
+    }
+    return this.ordersService.getAdminOrders(user.role === UserRole.SUPER_ADMIN ? branchId : staffBranchId, status);
   }
 
   @Patch('admin/:id/status')
   @ApiBearerAuth('JWT-auth')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.BRANCH_MANAGER, UserRole.KITCHEN, UserRole.DELIVERY)
   @ApiOperation({ summary: 'Update order lifecycle status (Admin, Kitchen, Delivery)' })
   async updateOrderStatus(
     @Param('id') id: string,
     @Body() dto: UpdateOrderStatusDto,
     @CurrentUser('name') userName?: string,
+    @Req() req?: Request,
   ) {
+    const order = await this.ordersService.getOrderForStaff(id);
+    requireBranchAccess((req as any).user, order.branchId);
     return this.ordersService.updateOrderStatus(id, dto, userName || 'ADMIN');
   }
 }

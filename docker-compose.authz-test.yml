@@ -1,0 +1,28 @@
+services:
+  authz-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${AUTHZ_TEST_DB_USER}
+      POSTGRES_PASSWORD: ${AUTHZ_TEST_DB_PASSWORD}
+      POSTGRES_DB: ${AUTHZ_TEST_DB_NAME}
+    ports:
+      - "127.0.0.1:${AUTHZ_TEST_POSTGRES_PORT}:5432"
+    volumes:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  authz-redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:${AUTHZ_TEST_REDIS_PORT}:6379"
+    volumes:
+      - /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 30

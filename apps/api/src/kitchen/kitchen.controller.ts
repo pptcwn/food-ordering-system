@@ -6,6 +6,7 @@ import {
   Body,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { KitchenService } from './kitchen.service';
@@ -14,6 +15,8 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { OrderStatus, UserRole } from '@food-ordering/types';
+import { Request } from 'express';
+import { effectiveBranchScope, requireBranchAccess } from '../common/authz/branch-access';
 
 class KitchenStatusDto {
   status: OrderStatus;
@@ -38,8 +41,8 @@ export class KitchenController {
   @Get('orders')
   @ApiOperation({ summary: 'KDS: list active orders (PAID/CONFIRMED/PREPARING/READY)' })
   @ApiQuery({ name: 'branchId', required: false, type: String })
-  async getKitchenOrders(@Query('branchId') branchId?: string) {
-    return this.kitchenService.getKitchenOrders(branchId);
+  async getKitchenOrders(@Query('branchId') branchId?: string, @Req() req?: Request) {
+    return this.kitchenService.getKitchenOrders(effectiveBranchScope((req as any).user, branchId));
   }
 
   /**
@@ -48,8 +51,10 @@ export class KitchenController {
    */
   @Get('orders/:id')
   @ApiOperation({ summary: 'KDS: get single order detail' })
-  async getKitchenOrder(@Param('id') id: string) {
-    return this.kitchenService.getKitchenOrder(id);
+  async getKitchenOrder(@Param('id') id: string, @Req() req?: Request) {
+    const order = await this.kitchenService.getKitchenOrder(id);
+    requireBranchAccess((req as any).user, order.branchId);
+    return order;
   }
 
   /**
@@ -62,7 +67,10 @@ export class KitchenController {
     @Param('id') id: string,
     @Body() dto: KitchenStatusDto,
     @CurrentUser('name') staffName?: string,
+    @Req() req?: Request,
   ) {
+    const order = await this.kitchenService.getKitchenOrder(id);
+    requireBranchAccess((req as any).user, order.branchId);
     return this.kitchenService.updateKitchenStatus(id, dto.status, staffName || 'KITCHEN');
   }
 
@@ -75,7 +83,10 @@ export class KitchenController {
   async toggleProductAvailability(
     @Param('id') id: string,
     @Body() dto: ToggleAvailabilityDto,
+    @Req() req?: Request,
   ) {
+    const product = await this.kitchenService.getProduct(id);
+    requireBranchAccess((req as any).user, product.branchId);
     return this.kitchenService.toggleProductAvailability(id, dto.is_available);
   }
 }

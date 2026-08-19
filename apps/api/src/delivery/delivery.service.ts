@@ -154,6 +154,18 @@ export class DeliveryService {
     return delivery;
   }
 
+  async getOrderForDelivery(id: string) {
+    const order = await this.prisma.order.findUnique({ where: { id } });
+    if (!order) throw new NotFoundException('Order not found');
+    return order;
+  }
+
+  async getDeliveryStaffById(id: string) {
+    const staff = await this.prisma.deliveryStaff.findUnique({ where: { id } });
+    if (!staff) throw new NotFoundException('Delivery staff not found');
+    return staff;
+  }
+
   async getPendingJobsForRider(staffId: string) {
     const staff = await this.prisma.deliveryStaff.findUnique({ where: { id: staffId } });
     if (!staff) throw new NotFoundException('Delivery staff not found');

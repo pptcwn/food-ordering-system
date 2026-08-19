@@ -20,8 +20,9 @@ import {
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('admin@foodordering.com');
-  const [password, setPassword] = useState('admin123');
+  const isDevelopmentDemo = process.env.NEXT_PUBLIC_DEV_DEMO_ENABLED === 'true';
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -56,9 +57,15 @@ export default function AdminLoginPage() {
   };
 
   const handleQuickDemoLogin = () => {
-    setEmail('admin@foodordering.com');
-    setPassword('admin123');
-    loginMutation.mutate({ email: 'admin@foodordering.com', password: 'admin123' });
+    setErrorMessage('');
+    apiClient.post('/auth/dev/staff/admin')
+      .then((data: any) => {
+        localStorage.setItem('access_token', data.accessToken);
+        if (data.refreshToken) localStorage.setItem('refresh_token', data.refreshToken);
+        localStorage.setItem('admin_user', JSON.stringify(data.user));
+        router.replace('/admin');
+      })
+      .catch((err: Error) => setErrorMessage(err.message || 'ไม่สามารถเข้าสู่ระบบเดโมได้'));
   };
 
   return (
@@ -152,7 +159,7 @@ export default function AdminLoginPage() {
         </form>
 
         {/* 3. Quick 1-Click Demo Login */}
-        <div className="pt-2 border-t border-slate-100">
+        {isDevelopmentDemo && <div className="pt-2 border-t border-slate-100">
           <button
             type="button"
             onClick={handleQuickDemoLogin}
@@ -160,13 +167,13 @@ export default function AdminLoginPage() {
             className="w-full py-3 bg-emerald-50 hover:bg-emerald-100 text-[#00A86B] font-bold text-xs rounded-2xl border border-emerald-200/80 flex items-center justify-center gap-2 transition-all btn-tactile"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span>เข้าสู่ระบบด่วนด้วยบัญชีแอดมิน (1-Click Super Admin)</span>
+            <span>เข้าสู่ระบบเดโมผู้ดูแล (Development only)</span>
           </button>
-        </div>
+        </div>}
 
         {/* Footer info */}
         <div className="text-center text-[10px] text-slate-400 space-y-1">
-          <p>บัญชีเริ่มต้น: <span className="font-mono font-semibold text-slate-600">admin@foodordering.com</span> / <span className="font-mono font-semibold text-slate-600">admin123</span></p>
+          {isDevelopmentDemo && <p>บัญชีเดโมถูกสร้างจาก environment ของ API เท่านั้น</p>}
           <div className="flex items-center justify-center gap-1 text-slate-400">
             <ShieldCheck className="w-3.5 h-3.5 text-[#00A86B]" />
             <span>ระบบความปลอดภัยเข้ารหัสด้วย JWT Token</span>

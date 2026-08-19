@@ -11,6 +11,7 @@ import {
   UploadedFile,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiConsumes, ApiBody } from '@nestjs/swagger';
@@ -19,6 +20,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { DeliveryStatus, UserRole } from '@food-ordering/types';
+import { Request } from 'express';
+import { effectiveBranchScope, requireBranchAccess } from '../common/authz/branch-access';
 
 class AssignDeliveryDto {
   deliveryStaffId: string;
@@ -61,21 +64,24 @@ export class DeliveryAdminController {
   async getDeliveries(
     @Query('branchId') branchId?: string,
     @Query('status') status?: DeliveryStatus,
+    @Req() req?: Request,
   ) {
-    return this.deliveryService.getDeliveries(branchId, status);
-  }
-
-  @Get(':id')
-  @ApiOperation({ summary: 'Get delivery job detail' })
-  async getDelivery(@Param('id') id: string) {
-    return this.deliveryService.getDelivery(id);
+    return this.deliveryService.getDeliveries(effectiveBranchScope((req as any).user, branchId), status);
   }
 
   @Get('staff/list')
   @ApiOperation({ summary: 'List active delivery staff for a branch' })
   @ApiQuery({ name: 'branchId', required: false })
-  async getDeliveryStaff(@Query('branchId') branchId?: string) {
-    return this.deliveryService.getDeliveryStaff(branchId);
+  async getDeliveryStaff(@Query('branchId') branchId?: string, @Req() req?: Request) {
+    return this.deliveryService.getDeliveryStaff(effectiveBranchScope((req as any).user, branchId));
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get delivery job detail' })
+  async getDelivery(@Param('id') id: string, @Req() req?: Request) {
+    const delivery = await this.deliveryService.getDelivery(id);
+    requireBranchAccess((req as any).user, delivery.order.branchId);
+    return delivery;
   }
 
   @Post(':orderId/assign')
@@ -83,21 +89,28 @@ export class DeliveryAdminController {
   async assignDelivery(
     @Param('orderId') orderId: string,
     @Body() dto: AssignDeliveryDto,
+    @Req() req?: Request,
   ) {
+    const order = await this.deliveryService.getOrderForDelivery(orderId);
+    requireBranchAccess((req as any).user, order.branchId);
+    const staff = await this.deliveryService.getDeliveryStaffById(dto.deliveryStaffId);
+    requireBranchAccess((req as any).user, staff.branchId);
     return this.deliveryService.assignDelivery(orderId, dto.deliveryStaffId);
   }
 
   @Patch(':id/pickup')
   @ApiOperation({ summary: 'Mark delivery as picked up by driver' })
   @HttpCode(HttpStatus.OK)
-  async markPickedUp(@Param('id') id: string) {
+  async markPickedUp(@Param('id') id: string, @Req() req?: Request) {
+    requireBranchAccess((req as any).user, (await this.deliveryService.getDelivery(id)).order.branchId);
     return this.deliveryService.markPickedUp(id);
   }
 
   @Patch(':id/out-for-delivery')
   @ApiOperation({ summary: 'Mark delivery as out-for-delivery (driver departed)' })
   @HttpCode(HttpStatus.OK)
-  async markOutForDelivery(@Param('id') id: string) {
+  async markOutForDelivery(@Param('id') id: string, @Req() req?: Request) {
+    requireBranchAccess((req as any).user, (await this.deliveryService.getDelivery(id)).order.branchId);
     return this.deliveryService.markOutForDelivery(id);
   }
 
@@ -110,14 +123,17 @@ export class DeliveryAdminController {
     @Param('id') id: string,
     @UploadedFile() file: any,
     @Body('note') note?: string,
+    @Req() req?: Request,
   ) {
+    requireBranchAccess((req as any).user, (await this.deliveryService.getDelivery(id)).order.branchId);
     return this.deliveryService.markDelivered(id, file, note);
   }
 
   @Patch(':id/failed')
   @ApiOperation({ summary: 'Mark delivery as failed' })
   @HttpCode(HttpStatus.OK)
-  async markFailed(@Param('id') id: string, @Body() dto: FailDeliveryDto) {
+  async markFailed(@Param('id') id: string, @Body() dto: FailDeliveryDto, @Req() req?: Request) {
+    requireBranchAccess((req as any).user, (await this.deliveryService.getDelivery(id)).order.branchId);
     return this.deliveryService.markFailed(id, dto.note);
   }
 }

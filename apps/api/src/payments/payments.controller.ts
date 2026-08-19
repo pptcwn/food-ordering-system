@@ -7,6 +7,8 @@ import {
   UseInterceptors,
   UploadedFile,
   UseGuards,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
@@ -15,8 +17,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '@food-ordering/types';
+import { Request } from 'express';
+import { effectiveBranchScope } from '../common/authz/branch-access';
 
 @ApiTags('Payments & Slip Upload')
+@ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard)
 @Controller('orders/:id/payment')
 export class PaymentsController {
   constructor(private paymentsService: PaymentsService) {}
@@ -39,14 +45,21 @@ export class PaymentsController {
   async uploadSlip(
     @Param('id') orderId: string,
     @UploadedFile() file: any,
+    @Req() req: Request,
   ) {
-    return this.paymentsService.uploadSlip(orderId, file as UploadedFileDto);
+    return this.paymentsService.uploadSlip(orderId, (req as any).user.id, file as UploadedFileDto);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get payment status and presigned slip image URL' })
-  async getPaymentDetails(@Param('id') orderId: string) {
-    return this.paymentsService.getPaymentDetails(orderId);
+  async getPaymentDetails(@Param('id') orderId: string, @Req() req: Request) {
+    return this.paymentsService.getPaymentDetails(orderId, (req as any).user.id);
+  }
+
+  @Post('dev/simulate')
+  @ApiOperation({ summary: 'Development-only: mark an uploaded local demo slip as verified' })
+  async simulateDevelopmentPayment(@Param('id') orderId: string, @Req() req: Request) {
+    return this.paymentsService.simulateDevelopmentPayment(orderId, (req as any).user.id);
   }
 }
 
@@ -69,7 +82,8 @@ export class AdminPaymentsController {
   async getAdminPayments(
     @Query('status') status?: string,
     @Query('branchId') branchId?: string,
+    @Req() req?: Request,
   ) {
-    return this.paymentsService.getAdminPayments(status, branchId);
+    return this.paymentsService.getAdminPayments(status, effectiveBranchScope((req as any).user, branchId));
   }
 }

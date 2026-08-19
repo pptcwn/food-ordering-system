@@ -8,6 +8,7 @@ import {
   Body,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ProductsService, CreateProductDto, UpdateProductDto } from './products.service';
@@ -15,6 +16,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '@food-ordering/types';
+import { Request } from 'express';
+import { requireBranchAccess } from '../common/authz/branch-access';
 
 export class UpdateAvailabilityDto {
   isAvailable: boolean;
@@ -46,7 +49,10 @@ export class ProductsController {
   async updateAvailability(
     @Param('id') id: string,
     @Body() dto: UpdateAvailabilityDto,
+    @Req() req?: Request,
   ) {
+    const product = await this.productsService.getProductById(id);
+    requireBranchAccess((req as any).user, product.branchId);
     return this.productsService.updateAvailability(id, dto.isAvailable);
   }
 
@@ -55,7 +61,8 @@ export class ProductsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Create new product with variants and modifiers (Admin)' })
-  async create(@Body() dto: CreateProductDto) {
+  async create(@Body() dto: CreateProductDto, @Req() req?: Request) {
+    requireBranchAccess((req as any).user, dto.branchId);
     return this.productsService.create(dto);
   }
 
@@ -64,7 +71,9 @@ export class ProductsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Update product information (Admin)' })
-  async update(@Param('id') id: string, @Body() dto: UpdateProductDto) {
+  async update(@Param('id') id: string, @Body() dto: UpdateProductDto, @Req() req?: Request) {
+    const product = await this.productsService.getProductById(id);
+    requireBranchAccess((req as any).user, product.branchId);
     return this.productsService.update(id, dto);
   }
 
@@ -73,7 +82,9 @@ export class ProductsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
   @ApiOperation({ summary: 'Deactivate product (Admin)' })
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @Req() req?: Request) {
+    const product = await this.productsService.getProductById(id);
+    requireBranchAccess((req as any).user, product.branchId);
     return this.productsService.remove(id);
   }
 }

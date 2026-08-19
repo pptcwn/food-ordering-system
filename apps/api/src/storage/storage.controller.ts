@@ -11,8 +11,14 @@ import { ApiTags, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { MinioService } from './minio.service';
 import { BUCKET_NAMES } from '@food-ordering/config';
 import { v4 as uuidv4 } from 'uuid';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { UserRole } from '@food-ordering/types';
 
 @ApiTags('Storage & Media')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.BRANCH_MANAGER)
 @Controller('storage')
 export class StorageController {
   constructor(private minioService: MinioService) {}

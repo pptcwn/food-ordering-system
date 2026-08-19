@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { v4 as uuidv4 } from 'uuid';
@@ -35,6 +36,7 @@ export class PaymentsService {
     private minioService: MinioService,
     private eventsGateway: EventsGateway,
     @InjectQueue(QUEUE_NAMES.PAYMENT_EVENTS) private paymentEventsQueue: Queue,
+    private configService: ConfigService,
   ) {}
 
   /**
@@ -42,6 +44,7 @@ export class PaymentsService {
    */
   async uploadSlip(
     orderId: string,
+    userId: string,
     file: UploadedFileDto,
   ) {
     if (!file) {
@@ -59,8 +62,8 @@ export class PaymentsService {
     }
 
     // 2. Fetch Order and Payment
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, userId },
       include: {
         payment: true,
         branch: true,
@@ -195,9 +198,81 @@ export class PaymentsService {
   }
 
   /**
+   * Local presentation aid, never a fallback for real payment verification.
+   * A real uploaded slip is still required; this only completes the local
+   * state transition when Slip2Go is intentionally unavailable in development.
+   */
+  async simulateDevelopmentPayment(orderId: string, userId: string) {
+    if (!this.isDevelopmentSimulationEnabled()) {
+      throw new NotFoundException('Payment simulation is unavailable');
+    }
+
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, userId },
+      include: { payment: { include: { slips: true } }, branch: true },
+    });
+    if (!order || !order.payment) throw new NotFoundException('Order not found');
+    if (order.payment.slips.length === 0) {
+      throw new BadRequestException('Upload a payment slip before using the local payment simulation');
+    }
+
+    if (order.paymentStatus === PaymentStatus.VERIFIED && order.orderStatus === OrderStatus.PAID) {
+      return { success: true, paymentId: order.payment.id, orderStatus: OrderStatus.PAID, simulated: true };
+    }
+
+    const allowedStatuses = [OrderStatus.PAYMENT_VERIFYING, OrderStatus.PAYMENT_FAILED];
+    if (!allowedStatuses.includes(order.orderStatus as OrderStatus)) {
+      throw new BadRequestException(`Order cannot be simulated from ${order.orderStatus}`);
+    }
+
+    const now = new Date();
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.update({
+        where: { id: order.payment!.id },
+        data: {
+          status: PaymentStatus.VERIFIED,
+          verifiedAt: now,
+          rawResponse: { source: 'development-payment-simulation', simulatedAt: now.toISOString() },
+        },
+      });
+      const paidOrder = await tx.order.update({
+        where: { id: order.id },
+        data: { paymentStatus: PaymentStatus.VERIFIED, orderStatus: OrderStatus.PAID, paidAt: now },
+      });
+      await tx.orderStatusLog.create({
+        data: {
+          orderId: order.id,
+          fromStatus: order.orderStatus,
+          toStatus: OrderStatus.PAID,
+          changedBy: 'DEV_PAYMENT_SIMULATION',
+          reason: 'Explicit local development payment simulation',
+        },
+      });
+      return { payment, order: paidOrder };
+    });
+
+    this.eventsGateway.emitOrderStatusChanged({
+      orderId: updated.order.id,
+      orderNo: updated.order.orderNo,
+      branchId: updated.order.branchId,
+      status: OrderStatus.PAID,
+      paymentStatus: PaymentStatus.VERIFIED,
+    });
+    this.logger.warn(`Development payment simulation completed for ${updated.order.orderNo}`);
+    return { success: true, paymentId: updated.payment.id, orderStatus: OrderStatus.PAID, simulated: true };
+  }
+
+  private isDevelopmentSimulationEnabled(): boolean {
+    if (this.configService.get<string>('NODE_ENV') !== 'development') return false;
+    if (this.configService.get<string>('DEV_DEMO_PAYMENT_SIMULATION_ENABLED') !== 'true') return false;
+    const secret = this.configService.get<string>('SLIP2GO_API_SECRET')?.trim().toLowerCase() || '';
+    return !secret || /^(your_|placeholder|change[_-]?me|example|test[_-]?key)/.test(secret);
+  }
+
+  /**
    * Get payment details with private presigned URL for slip image
    */
-  async getPaymentDetails(orderId: string) {
+  async getPaymentDetails(orderId: string, userId: string) {
     const payment = await this.prisma.payment.findUnique({
       where: { orderId },
       include: {
@@ -210,7 +285,7 @@ export class PaymentsService {
       },
     });
 
-    if (!payment) {
+    if (!payment || payment.order.userId !== userId) {
       throw new NotFoundException('Payment record not found');
     }
 

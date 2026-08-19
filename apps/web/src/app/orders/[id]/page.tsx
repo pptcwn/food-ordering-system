@@ -125,6 +125,7 @@ export default function OrderDetailPage() {
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [uploadMsg, setUploadMsg] = useState<{ text: string; isError?: boolean } | null>(null);
   const [copied, setCopied] = useState(false);
+  const isDevelopmentDemo = process.env.NEXT_PUBLIC_DEV_DEMO_ENABLED === 'true';
 
   // Fetch Order
   const { data: order, isLoading, isError } = useQuery<any>({
@@ -171,6 +172,17 @@ export default function OrderDetailPage() {
     },
     onError: (err: any) => {
       setUploadMsg({ text: err?.message || 'ไม่สามารถอัปโหลดสลิปได้ กรุณาลองใหม่อีกครั้ง', isError: true });
+    },
+  });
+
+  const simulatePaymentMutation = useMutation({
+    mutationFn: () => apiClient.post(`/orders/${orderId}/payment/dev/simulate`),
+    onSuccess: () => {
+      setUploadMsg({ text: 'ยืนยันการชำระเงินเดโมแล้ว ออเดอร์ถูกส่งเข้าครัว' });
+      queryClient.invalidateQueries({ queryKey: ['order', orderId] });
+    },
+    onError: (err: any) => {
+      setUploadMsg({ text: err?.message || 'ไม่สามารถจำลองการชำระเงินได้', isError: true });
     },
   });
 
@@ -221,6 +233,7 @@ export default function OrderDetailPage() {
   const currentStatus = order.orderStatus || 'PENDING_PAYMENT';
   const statusInfo = STATUS_CONFIG[currentStatus] || STATUS_CONFIG.PENDING_PAYMENT;
   const isPendingPayment = currentStatus === 'PENDING_PAYMENT';
+  const canSimulatePayment = isDevelopmentDemo && (currentStatus === 'PAYMENT_VERIFYING' || currentStatus === 'PAYMENT_FAILED');
   const isDelivered = currentStatus === 'DELIVERED';
   const isOutForDelivery = currentStatus === 'OUT_FOR_DELIVERY' || currentStatus === 'READY';
 
@@ -489,6 +502,17 @@ export default function OrderDetailPage() {
                   </div>
                 )}
               </div>
+
+              {canSimulatePayment && (
+                <button
+                  type="button"
+                  onClick={() => simulatePaymentMutation.mutate()}
+                  disabled={simulatePaymentMutation.isPending}
+                  className="mt-3 w-full py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
+                >
+                  {simulatePaymentMutation.isPending ? 'กำลังยืนยันเดโม...' : 'ยืนยันชำระเงินเดโม (เฉพาะ Development)'}
+                </button>
+              )}
             </div>
           </div>
         )}

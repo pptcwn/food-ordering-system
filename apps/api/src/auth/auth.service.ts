@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
@@ -114,8 +114,6 @@ export class AuthService {
   async loginAdmin(email: string, password: string) {
     try {
       const cleanEmail = (email || '').trim().toLowerCase();
-      const isDefaultAdmin = cleanEmail === 'admin@foodordering.com';
-
       this.logger.log(`Admin login attempt for: ${cleanEmail}`);
 
       let user = await this.prisma.user.findUnique({
@@ -123,39 +121,17 @@ export class AuthService {
         include: { staff: true },
       });
 
-      // Auto-bootstrap initial Super Admin account if email matches default
-      if (!user && isDefaultAdmin) {
-        const hash = await bcrypt.hash(password || 'admin123', 10);
-        user = await this.prisma.user.create({
-          data: {
-            email: 'admin@foodordering.com',
-            name: 'System Super Admin',
-            phone: '0812345678',
-            role: UserRole.SUPER_ADMIN,
-            passwordHash: hash,
-            isActive: true,
-          },
-          include: { staff: true },
-        });
-      }
-
       if (!user || !user.isActive) {
         throw new UnauthorizedException('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
       }
 
-      // If user has no passwordHash yet (seeded without hash)
+      // A staff account without a provisioned password is not login-capable.
       if (!user.passwordHash) {
-        const hash = await bcrypt.hash(password || 'admin123', 10);
-        user = await this.prisma.user.update({
-          where: { id: user.id },
-          data: { passwordHash: hash },
-          include: { staff: true },
-        });
-      } else {
-        const isMatch = await bcrypt.compare(password, user.passwordHash);
-        if (!isMatch && (!isDefaultAdmin || password !== 'admin123')) {
-          throw new UnauthorizedException('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
-        }
+        throw new UnauthorizedException('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+      }
+      const isMatch = await bcrypt.compare(password, user.passwordHash);
+      if (!isMatch) {
+        throw new UnauthorizedException('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
       }
 
       const tokens = this.generateTokens(user.id, user.role, undefined, user.email || undefined);
@@ -184,9 +160,7 @@ export class AuthService {
    */
   async refreshToken(refreshToken: string) {
     try {
-      const refreshSecret =
-        this.configService.get<string>('JWT_REFRESH_SECRET') ||
-        'super_secret_refresh_jwt_key_change_in_production';
+      const refreshSecret = this.requiredSecret('JWT_REFRESH_SECRET');
       const payload = this.jwtService.verify(refreshToken, { secret: refreshSecret });
 
       const user = await this.prisma.user.findUnique({
@@ -204,15 +178,114 @@ export class AuthService {
     }
   }
 
+  /**
+   * Provides deterministic identities for an explicitly enabled local demo.
+   * This deliberately does not share the LINE verification path and is hidden
+   * outside development so it cannot become a production authentication fallback.
+   */
+  async loginDevelopmentCustomer() {
+    this.assertDevelopmentDemoEnabled();
+    const email = this.requiredDevelopmentValue('DEV_DEMO_CUSTOMER_EMAIL');
+    const name = this.configService.get<string>('DEV_DEMO_CUSTOMER_NAME')?.trim() || 'Local Demo Customer';
+    const lineUserId = `dev-demo:${email}`;
+
+    const user = await this.prisma.user.upsert({
+      where: { email },
+      update: { name, role: UserRole.CUSTOMER, isActive: true },
+      create: {
+        email,
+        name,
+        role: UserRole.CUSTOMER,
+        lineUser: { create: { lineUserId, displayName: name } },
+      },
+      include: { lineUser: true, addresses: { where: { isDefault: true }, take: 1 } },
+    });
+
+    // A prior local run may have created the user before the demo LINE record.
+    if (!user.lineUser) {
+      await this.prisma.lineUser.upsert({
+        where: { userId: user.id },
+        update: { lineUserId, displayName: name },
+        create: { userId: user.id, lineUserId, displayName: name },
+      });
+    }
+
+    const tokens = this.generateTokens(user.id, UserRole.CUSTOMER, lineUserId, user.email || undefined);
+    return {
+      ...tokens,
+      user: { id: user.id, name: user.name, email: user.email, role: UserRole.CUSTOMER, lineUserId },
+      hasCompletedProfile: false,
+      defaultAddress: user.addresses[0] || null,
+      demo: true,
+    };
+  }
+
+  async loginDevelopmentStaff(role: 'admin' | 'kitchen') {
+    this.assertDevelopmentDemoEnabled();
+    if (role !== 'admin' && role !== 'kitchen') throw new NotFoundException('Not found');
+
+    const branch = await this.ensureDevelopmentBranch();
+    const config = role === 'admin'
+      ? { emailKey: 'DEV_DEMO_STAFF_EMAIL', passwordKey: 'DEV_DEMO_STAFF_PASSWORD', name: 'Local Demo Admin', role: UserRole.ADMIN }
+      : { emailKey: 'DEV_DEMO_KITCHEN_EMAIL', passwordKey: 'DEV_DEMO_KITCHEN_PASSWORD', name: 'Local Demo Kitchen', role: UserRole.KITCHEN };
+    const email = this.requiredDevelopmentValue(config.emailKey);
+    const password = this.requiredDevelopmentValue(config.passwordKey);
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const user = await this.prisma.user.upsert({
+      where: { email },
+      update: {
+        name: config.name,
+        role: config.role,
+        passwordHash,
+        isActive: true,
+        staff: { upsert: { update: { branchId: branch.id, role: config.role, isActive: true }, create: { branchId: branch.id, role: config.role } } },
+      },
+      create: {
+        email,
+        name: config.name,
+        role: config.role,
+        passwordHash,
+        staff: { create: { branchId: branch.id, role: config.role } },
+      },
+      include: { staff: true },
+    });
+    const tokens = this.generateTokens(user.id, user.role, undefined, user.email || undefined);
+    return {
+      ...tokens,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, branchId: user.staff?.branchId || null },
+      demo: true,
+    };
+  }
+
+  private async ensureDevelopmentBranch() {
+    const code = this.requiredDevelopmentValue('DEV_DEMO_BRANCH_CODE');
+    const name = this.configService.get<string>('DEV_DEMO_BRANCH_NAME')?.trim() || 'Local Demo Branch';
+    return this.prisma.branch.upsert({
+      where: { code },
+      update: { name, isActive: true },
+      create: { code, name, isActive: true, openingTime: '00:00', closingTime: '23:59', lastOrderTime: '23:59' },
+    });
+  }
+
+  private assertDevelopmentDemoEnabled() {
+    if (this.configService.get<string>('NODE_ENV') !== 'development' || this.configService.get<string>('DEV_DEMO_ENABLED') !== 'true') {
+      // Do not advertise a development authentication surface outside its explicit local opt-in.
+      throw new NotFoundException('Not found');
+    }
+  }
+
+  private requiredDevelopmentValue(name: string): string {
+    const value = this.configService.get<string>(name)?.trim();
+    if (!value) throw new BadRequestException(`${name} must be configured before using the local demo`);
+    return value;
+  }
+
   private generateTokens(userId: string, role: string, lineUserId?: string, email?: string) {
     const payload = { sub: userId, role, lineUserId, email };
 
-    const secret =
-      this.configService.get<string>('JWT_SECRET') ||
-      'super_secret_jwt_key_change_in_production_min_32_chars';
-    const refreshSecret =
-      this.configService.get<string>('JWT_REFRESH_SECRET') ||
-      'super_secret_refresh_jwt_key_change_in_production';
+    const secret = this.requiredSecret('JWT_SECRET');
+    const refreshSecret = this.requiredSecret('JWT_REFRESH_SECRET');
 
     const accessToken = this.jwtService.sign(payload, {
       secret,
@@ -225,5 +298,11 @@ export class AuthService {
     });
 
     return { accessToken, refreshToken };
+  }
+
+  private requiredSecret(name: 'JWT_SECRET' | 'JWT_REFRESH_SECRET'): string {
+    const secret = this.configService.get<string>(name)?.trim();
+    if (!secret) throw new UnauthorizedException(`${name} is not configured`);
+    return secret;
   }
 }

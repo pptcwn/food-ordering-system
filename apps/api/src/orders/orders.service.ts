@@ -67,7 +67,7 @@ export class OrdersService {
   /**
    * Create new Order from customer Cart with full business validation and DB transaction
    */
-  async createOrder(userId: string | undefined, dto: CreateOrderDto) {
+  async createOrder(userId: string, dto: CreateOrderDto) {
     // 1. Validate Customer Information
     const customerName = dto.customerName?.trim();
     if (!customerName) {
@@ -85,12 +85,7 @@ export class OrdersService {
 
     // 2. Fetch Customer Cart with all Items
     const cart = await this.prisma.cart.findFirst({
-      where: {
-        OR: [
-          ...(userId ? [{ userId }] : []),
-          ...(dto.sessionId ? [{ sessionId: dto.sessionId }] : []),
-        ],
-      },
+      where: { userId },
       include: {
         branch: true,
         items: {
@@ -106,7 +101,7 @@ export class OrdersService {
     });
 
     if (!cart || cart.items.length === 0) {
-      throw new BadRequestException('Cannot checkout an empty cart');
+      throw new NotFoundException('Cart not found');
     }
 
     // 3. Re-validate Branch & Operating Hours
@@ -360,9 +355,9 @@ export class OrdersService {
   /**
    * Get Order by ID with full relations
    */
-  async getOrderById(id: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
+  async getOrderById(id: string, userId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id, userId },
       include: {
         items: {
           include: {
@@ -393,9 +388,9 @@ export class OrdersService {
   /**
    * Lightweight status check for customer tracking screen
    */
-  async getOrderStatus(id: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
+  async getOrderStatus(id: string, userId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { id, userId },
       select: {
         id: true,
         orderNo: true,
@@ -454,6 +449,12 @@ export class OrdersService {
         },
       },
     });
+  }
+
+  async getOrderForStaff(id: string) {
+    const order = await this.prisma.order.findUnique({ where: { id } });
+    if (!order) throw new NotFoundException('Order not found');
+    return order;
   }
 
   /**

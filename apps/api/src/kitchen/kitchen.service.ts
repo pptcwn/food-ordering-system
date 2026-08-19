@@ -70,6 +70,12 @@ export class KitchenService {
     return order;
   }
 
+  async getProduct(id: string) {
+    const product = await this.prisma.product.findUnique({ where: { id } });
+    if (!product) throw new NotFoundException('Product not found');
+    return product;
+  }
+
   /**
    * Kitchen status transition: PAID → CONFIRMED → PREPARING → READY
    * Enforces allowed transitions to prevent invalid state changes

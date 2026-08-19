@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 
@@ -41,5 +41,21 @@ export class AuthController {
   @ApiOperation({ summary: 'Refresh expired JWT access token' })
   async refreshToken(@Body() dto: RefreshTokenDto) {
     return this.authService.refreshToken(dto.refreshToken);
+  }
+
+  /**
+   * Local-only demo entry points.  AuthService returns 404 unless both
+   * NODE_ENV=development and DEV_DEMO_ENABLED=true are configured.
+   */
+  @Post('dev/customer')
+  @HttpCode(HttpStatus.OK)
+  async loginDevelopmentCustomer() {
+    return this.authService.loginDevelopmentCustomer();
+  }
+
+  @Post('dev/staff/:role')
+  @HttpCode(HttpStatus.OK)
+  async loginDevelopmentStaff(@Param('role') role: 'admin' | 'kitchen') {
+    return this.authService.loginDevelopmentStaff(role);
   }
 }
