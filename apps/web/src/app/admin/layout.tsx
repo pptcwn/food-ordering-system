@@ -17,7 +17,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
 
     const token = localStorage.getItem('access_token');
-    if (!token) {
+    const rawAdminUser = localStorage.getItem('admin_user');
+    let role: string | undefined;
+    try {
+      role = rawAdminUser ? JSON.parse(rawAdminUser).role : undefined;
+    } catch {
+      role = undefined;
+    }
+
+    const allowedRoles = ['SUPER_ADMIN', 'ADMIN', 'BRANCH_MANAGER'];
+    if (!token || !role || !allowedRoles.includes(role)) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('admin_user');
       router.replace('/admin/login');
     } else {
       setIsAuthenticated(true);

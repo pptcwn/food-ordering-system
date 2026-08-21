@@ -6,6 +6,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { formatPrice } from '@/lib/utils';
+import { getCheckoutBlocker } from '@/lib/customer-ordering';
+import { Button } from '@/components/ui/button';
 import {
   ArrowLeft,
   MapPin,
@@ -37,8 +39,6 @@ export default function CheckoutPage() {
 
   const [notes, setNotes] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
-  const [deliverySpeed, setDeliverySpeed] = useState<'EXPRESS' | 'STANDARD'>('EXPRESS');
-  const [paymentMethod, setPaymentMethod] = useState<'PROMPTPAY' | 'CASH'>('PROMPTPAY');
 
   const { data: cart, isLoading } = useQuery<any>({
     queryKey: ['cart'],
@@ -62,18 +62,15 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = () => {
     setErrorMsg('');
-    if (!cart || cart.items.length === 0) {
-      setErrorMsg('ไม่มีสินค้าในตะกร้า');
-      return;
-    }
-
-    if (!customerName || !customerPhone) {
-      setErrorMsg('กรุณากรอกชื่อและเบอร์โทรศัพท์');
-      return;
-    }
-
-    if (orderType === 'DELIVERY' && !location?.addressLine) {
-      setErrorMsg('กรุณาระบุที่อยู่จัดส่ง');
+    const blocker = getCheckoutBlocker({
+      itemCount: cart?.items?.length || 0,
+      orderType,
+      location,
+      hasUnavailableItem: cart?.items?.some((item: any) => item.product?.isAvailable === false) || false,
+      hasProfile: Boolean(customerName.trim() && customerPhone.trim()),
+    });
+    if (blocker) {
+      setErrorMsg(blocker);
       return;
     }
 
@@ -98,7 +95,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col justify-between bg-[#FAF8F5] min-h-screen pb-32">
+    <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-1 flex-col justify-between bg-[#FAF8F5] pb-32">
       <div>
         {/* 1. Header (Matching Reference Screen 6) */}
         <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md px-5 py-3.5 flex items-center justify-between border-b border-slate-100 shadow-xs">
@@ -108,7 +105,7 @@ export default function CheckoutPage() {
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
-          <h1 className="text-sm font-black text-slate-900">เช็คเอาท์ (Checkout)</h1>
+          <h1 className="text-sm font-black text-slate-900">ยืนยันคำสั่งซื้อ</h1>
           <div className="w-9" />
         </header>
 
@@ -124,13 +121,13 @@ export default function CheckoutPage() {
           <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-soft space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                ที่อยู่จัดส่ง (Delivery Address)
+                {orderType === 'DELIVERY' ? 'จุดจัดส่ง' : 'จุดรับสินค้า'}
               </span>
               <button
                 onClick={() => router.push('/onboarding')}
                 className="text-xs text-[#00A86B] font-bold hover:underline"
               >
-                Change
+                แก้ไข
               </button>
             </div>
 
@@ -151,111 +148,32 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* 3. Delivery Time Options (Matching Reference Screen 6) */}
+          {/* 3. Delivery estimate */}
           <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-soft space-y-3">
             <span className="text-xs font-black text-slate-900 uppercase tracking-wider block">
-              ความเร็วการจัดส่ง (Delivery Time)
+              {orderType === 'DELIVERY' ? 'เวลาจัดส่งโดยประมาณ' : 'เวลารับสินค้าโดยประมาณ'}
             </span>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              <button
-                type="button"
-                onClick={() => setDeliverySpeed('EXPRESS')}
-                className={`p-3.5 rounded-2xl border flex flex-col text-left transition-all btn-tactile ${
-                  deliverySpeed === 'EXPRESS'
-                    ? 'border-[#00A86B] bg-[#EAF8F1] ring-1 ring-[#00A86B]'
-                    : 'border-slate-100 bg-slate-50 text-slate-600'
-                }`}
-              >
-                <div className="flex items-center justify-between w-full mb-1">
-                  <span className="text-xs font-extrabold text-slate-900">Express Delivery</span>
-                  {deliverySpeed === 'EXPRESS' && <Check className="w-3.5 h-3.5 text-[#00A86B]" />}
-                </div>
-                <span className="text-[11px] text-slate-500">20-30 นาที</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDeliverySpeed('STANDARD')}
-                className={`p-3.5 rounded-2xl border flex flex-col text-left transition-all btn-tactile ${
-                  deliverySpeed === 'STANDARD'
-                    ? 'border-[#00A86B] bg-[#EAF8F1] ring-1 ring-[#00A86B]'
-                    : 'border-slate-100 bg-slate-50 text-slate-600'
-                }`}
-              >
-                <div className="flex items-center justify-between w-full mb-1">
-                  <span className="text-xs font-extrabold text-slate-900">Standard</span>
-                  {deliverySpeed === 'STANDARD' && <Check className="w-3.5 h-3.5 text-[#00A86B]" />}
-                </div>
-                <span className="text-[11px] text-slate-500">ส่งฟรีปกติ</span>
-              </button>
-            </div>
+            <p className="rounded-2xl bg-[#EAF8F1] px-4 py-3 text-sm font-semibold text-slate-700">
+              {orderType === 'DELIVERY'
+                ? 'ร้านจะจัดส่งตามคิวที่พร้อม โดยระบบจะแสดงสถานะล่าสุดในหน้าคำสั่งซื้อ'
+                : 'ร้านจะเตรียมอาหารตามคิว เมื่อพร้อมรับจะแจ้งสถานะในหน้าคำสั่งซื้อ'}
+            </p>
           </div>
 
-          {/* 4. Payment Method Card (Matching Reference Screen 6) */}
+          {/* 4. Payment Method */}
           <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-soft space-y-3">
             <span className="text-xs font-black text-slate-900 uppercase tracking-wider block">
-              วิธีการชำระเงิน (Payment Method)
+              วิธีชำระเงิน
             </span>
-
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('PROMPTPAY')}
-                className={`w-full p-3.5 rounded-2xl border flex items-center justify-between transition-all btn-tactile ${
-                  paymentMethod === 'PROMPTPAY'
-                    ? 'border-[#00A86B] bg-[#EAF8F1] ring-1 ring-[#00A86B]'
-                    : 'border-slate-100 bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-blue-700 text-white font-bold text-xs flex items-center justify-center">
-                    TH
-                  </div>
-                  <div className="text-left">
-                    <p className="text-xs font-black text-slate-900">Thai QR PromptPay</p>
-                    <p className="text-[10px] text-slate-400">สแกนจ่ายทันที พร้อมตรวจสลิปอัตโนมัติ</p>
-                  </div>
-                </div>
-                <div
-                  className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                    paymentMethod === 'PROMPTPAY'
-                      ? 'border-[#00A86B] bg-[#00A86B] text-white'
-                      : 'border-slate-300'
-                  }`}
-                >
-                  {paymentMethod === 'PROMPTPAY' && <Check className="w-3 h-3" />}
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('CASH')}
-                className={`w-full p-3.5 rounded-2xl border flex items-center justify-between transition-all btn-tactile ${
-                  paymentMethod === 'CASH'
-                    ? 'border-[#00A86B] bg-[#EAF8F1] ring-1 ring-[#00A86B]'
-                    : 'border-slate-100 bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
-                    <Banknote className="w-4 h-4" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-xs font-black text-slate-900">ชำระเงินสดปลายทาง (COD)</p>
-                    <p className="text-[10px] text-slate-400">จ่ายกับไรเดอร์เมื่อได้รับอาหาร</p>
-                  </div>
-                </div>
-                <div
-                  className={`w-5 h-5 rounded-full border flex items-center justify-center ${
-                    paymentMethod === 'CASH'
-                      ? 'border-[#00A86B] bg-[#00A86B] text-white'
-                      : 'border-slate-300'
-                  }`}
-                >
-                  {paymentMethod === 'CASH' && <Check className="w-3 h-3" />}
-                </div>
-              </button>
+            <div className="flex items-center gap-3 rounded-2xl border border-[#00A86B] bg-[#EAF8F1] p-3.5">
+              <div className="w-8 h-8 rounded-xl bg-blue-700 text-white font-bold text-xs flex items-center justify-center">
+                TH
+              </div>
+              <div>
+                <p className="text-sm font-black text-slate-900">Thai QR PromptPay</p>
+                <p className="text-xs text-slate-500">สแกนจ่ายและอัปโหลดสลิปในหน้ารายการสั่งซื้อ</p>
+              </div>
+              <Check className="ml-auto w-4 h-4 text-[#00A86B]" aria-label="เลือก PromptPay แล้ว" />
             </div>
           </div>
 
@@ -275,13 +193,14 @@ export default function CheckoutPage() {
       {/* 6. Place Order Bottom CTA Bar (Matching Reference Screen 6 "Place Order ➔") */}
       <div className="fixed bottom-0 inset-x-0 max-w-[480px] mx-auto bg-white/95 backdrop-blur-md border-t border-slate-100 p-4 shadow-xl z-40">
         <div className="flex items-center justify-between mb-3 px-1">
-          <span className="text-xs text-slate-500 font-medium">ยอดชำระทั้งหมด (Total Amount)</span>
+          <span className="text-xs text-slate-500 font-medium">ยอดชำระทั้งหมด</span>
           <span className="text-lg font-black text-slate-900">{formatPrice(grandTotal)}</span>
         </div>
-        <button
+        <Button
           onClick={handlePlaceOrder}
           disabled={createOrderMutation.isPending}
-          className="w-full py-4 bg-[#00A86B] hover:bg-[#00925D] text-white font-black text-sm rounded-full shadow-lg shadow-[#00A86B]/30 flex items-center justify-between px-6 transition-all btn-tactile disabled:opacity-50"
+          size="lg"
+          className="w-full justify-between rounded-full px-6 shadow-lg shadow-emerald-950/20"
         >
           {createOrderMutation.isPending ? (
             <div className="flex items-center justify-center gap-2 w-full">
@@ -290,11 +209,11 @@ export default function CheckoutPage() {
             </div>
           ) : (
             <>
-              <span>ยืนยันการสั่งซื้อ (Place Order)</span>
+              <span>ยืนยันการสั่งซื้อ</span>
               <ArrowRight className="w-4 h-4" />
             </>
           )}
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { UpdateBranchSettingsDtoType, UpdateBranchStorefrontDtoType } from '@food-ordering/validation';
+import { requireBranchAccess } from '../common/authz/branch-access';
 
 export interface BranchDistance {
   id: string;
@@ -22,7 +24,22 @@ export class BranchesService {
   async getAllBranches() {
     return this.prisma.branch.findMany({
       where: { isActive: true },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        isActive: true,
+        address: true,
+        latitude: true,
+        longitude: true,
+        openingTime: true,
+        closingTime: true,
+        lastOrderTime: true,
+        storefrontCoverUrl: true,
+        storefrontProfileUrl: true,
+        storefrontHeadline: true,
+        storefrontSubheadline: true,
+        storefrontThemeColor: true,
         openingHours: true,
       },
       orderBy: { name: 'asc' },
@@ -32,7 +49,22 @@ export class BranchesService {
   async getBranchById(id: string) {
     const branch = await this.prisma.branch.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        isActive: true,
+        address: true,
+        latitude: true,
+        longitude: true,
+        openingTime: true,
+        closingTime: true,
+        lastOrderTime: true,
+        storefrontCoverUrl: true,
+        storefrontProfileUrl: true,
+        storefrontHeadline: true,
+        storefrontSubheadline: true,
+        storefrontThemeColor: true,
         openingHours: true,
       },
     });
@@ -42,6 +74,46 @@ export class BranchesService {
     }
 
     return branch;
+  }
+
+  async updateStorefront(id: string, dto: UpdateBranchStorefrontDtoType, user: any) {
+    requireBranchAccess(user, id);
+    await this.getBranchById(id);
+
+    return this.prisma.branch.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  async updateSettings(id: string, dto: UpdateBranchSettingsDtoType, user: any) {
+    requireBranchAccess(user, id);
+    await this.getBranchById(id);
+
+    return this.prisma.branch.update({
+      where: { id },
+      data: { name: dto.name },
+    });
+  }
+
+  async removeBranch(id: string, user: any) {
+    requireBranchAccess(user, id);
+    const branch = await this.getBranchById(id);
+
+    if (!branch.isActive) {
+      throw new NotFoundException('Branch not found');
+    }
+
+    const activeBranchCount = await this.prisma.branch.count({ where: { isActive: true } });
+    if (activeBranchCount <= 1) {
+      throw new ConflictException('At least one active branch is required');
+    }
+
+    // Keep orders, payments, and audit history intact while removing the branch from use.
+    return this.prisma.branch.update({
+      where: { id },
+      data: { isActive: false },
+    });
   }
 
   /**

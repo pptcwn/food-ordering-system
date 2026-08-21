@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { apiClient } from '@/lib/api';
-import BottomNav from '@/components/BottomNav';
 import {
   User,
   Phone,
@@ -12,12 +11,8 @@ import {
   Bike,
   Store,
   Navigation,
-  CheckCircle2,
   ArrowRight,
   AlertCircle,
-  Sparkles,
-  ShieldCheck,
-  Check,
 } from 'lucide-react';
 
 export default function OnboardingPage() {
@@ -124,59 +119,30 @@ export default function OnboardingPage() {
       try {
         await apiClient.put('/customers/profile', { name: cleanName, phone: cleanPhone });
         await apiClient.post('/customers/location', locData);
-      } catch (err) {}
+      } catch (err) {
+        setErrorMsg('บันทึกข้อมูลจัดส่งไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+        return;
+      }
     } else {
       try {
         await apiClient.put('/customers/profile', { name: cleanName, phone: cleanPhone });
-      } catch (err) {}
+      } catch (err) {
+        setErrorMsg('บันทึกข้อมูลผู้ใช้ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+        return;
+      }
     }
 
     router.push('/menu');
   };
 
   return (
-    <div className="flex-1 flex flex-col justify-between bg-[#FAF8F5] min-h-screen p-5 pb-32">
-      <div>
-        {/* 1. Hero Welcome Card (Exact Match to Reference Screen 1) */}
-        <div className="bg-gradient-to-br from-[#EAF8F1] via-[#E4F5ED] to-[#FAF1E6] rounded-4xl p-6 shadow-soft border border-emerald-100/60 relative overflow-hidden mb-5">
-          <div className="w-10 h-10 rounded-full bg-white shadow-xs flex items-center justify-center text-[#00A86B] font-bold text-lg mb-3">
-            🍃
-          </div>
+    <main className="mx-auto min-h-screen w-full max-w-3xl bg-[#FAF8F5] pb-8">
+      <header className="sticky top-0 z-30 border-b border-slate-100 bg-white/95 px-5 py-4 backdrop-blur-md">
+        <h1 className="text-base font-black text-slate-900">ข้อมูลสำหรับสั่งอาหาร</h1>
+        <p className="mt-0.5 text-xs text-slate-500">กรอกครั้งเดียว เพื่อสั่งครั้งต่อไปได้เร็วขึ้น</p>
+      </header>
 
-          <h1 className="text-2xl font-black text-slate-900 leading-tight">
-            Fresh Food & Meals <br />
-            <span className="text-[#00A86B]">Delivered to Your Doorstep</span>
-          </h1>
-
-          <p className="text-xs text-slate-500 mt-2 leading-relaxed max-w-[260px]">
-            อาหารสดใหม่ ปรุงจานต่อจาน พร้อมจัดส่งด่วนถึงมือคุณใน 20-30 นาที
-          </p>
-
-          {/* 3D Food Basket Photo */}
-          <div className="w-full h-44 my-3 flex items-center justify-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&auto=format&fit=crop&q=80"
-              alt="Fresh Groceries"
-              className="w-48 h-36 object-cover rounded-3xl shadow-md rotate-2 hover:rotate-0 transition-transform"
-            />
-          </div>
-
-          {/* Social Proof Avatar Row (Matching Reference Screen 1) */}
-          <div className="flex items-center justify-between pt-2 border-t border-emerald-100/60">
-            <span className="text-[11px] font-bold text-slate-600">
-              Trusted by 10,000+ Happy Foodies
-            </span>
-            <div className="flex -space-x-1.5">
-              <span className="w-6 h-6 rounded-full bg-[#00A86B] text-white text-[10px] font-bold flex items-center justify-center border-2 border-white">
-                ⭐
-              </span>
-              <span className="w-6 h-6 rounded-full bg-amber-400 text-slate-950 text-[10px] font-bold flex items-center justify-center border-2 border-white">
-                4.9
-              </span>
-            </div>
-          </div>
-        </div>
+      <div className="space-y-4 p-4">
 
         {errorMsg && (
           <div className="mb-4 p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2 text-rose-700 text-xs shadow-soft">
@@ -185,9 +151,7 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* 2. Customer Contact & Location Setup Form */}
         <form onSubmit={handleSaveAndProceed} className="space-y-3.5">
-          {/* Delivery Type Toggle */}
           <div className="grid grid-cols-2 gap-2 p-1.5 bg-white rounded-2xl border border-slate-100 shadow-soft">
             <button
               type="button"
@@ -199,7 +163,7 @@ export default function OnboardingPage() {
               }`}
             >
               <Bike className="w-4 h-4" />
-              <span>จัดส่ง Delivery</span>
+              <span>จัดส่ง</span>
             </button>
             <button
               type="button"
@@ -211,11 +175,10 @@ export default function OnboardingPage() {
               }`}
             >
               <Store className="w-4 h-4" />
-              <span>รับที่ร้าน (Pickup)</span>
+              <span>รับที่ร้าน</span>
             </button>
           </div>
 
-          {/* Name & Phone */}
           <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-soft space-y-3">
             <div>
               <label className="block text-xs font-black text-slate-800 mb-1">
@@ -229,7 +192,7 @@ export default function OnboardingPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="เช่น คุณบีม หรือ คุณสมชาย"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:bg-white transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-base text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:bg-white transition-all"
                 />
               </div>
             </div>
@@ -247,13 +210,12 @@ export default function OnboardingPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="0812345678"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:bg-white transition-all font-mono"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-base text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:bg-white transition-all font-mono"
                 />
               </div>
             </div>
           </div>
 
-          {/* Location & GPS */}
           {type === 'DELIVERY' && (
             <div className="bg-white p-4 rounded-3xl border border-slate-100 shadow-soft space-y-3">
               <div className="flex items-center justify-between">
@@ -289,22 +251,26 @@ export default function OnboardingPage() {
               />
             </div>
           )}
+
+          {type === 'PICKUP' && nearestBranchInfo && (
+            <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-950">
+              <Store className="h-5 w-5 shrink-0 text-[#00A86B]" />
+              <div>
+                <p className="font-bold">รับสินค้าที่ {nearestBranchInfo.name}</p>
+                <p className="mt-0.5 text-xs text-emerald-800">เลือกสาขาใกล้คุณแล้ว</p>
+              </div>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="flex w-full items-center justify-between rounded-full bg-[#00A86B] px-6 py-4 text-sm font-black text-white shadow-lg shadow-[#00A86B]/30 transition-all hover:bg-[#00925D] btn-tactile"
+          >
+            <span>บันทึกและเลือกเมนู</span>
+            <ArrowRight className="h-4 w-4" />
+          </button>
         </form>
       </div>
-
-      {/* 3. Get Started Button (Matching Reference Screen 1 "Get Started ➔") */}
-      <div className="pt-4">
-        <button
-          type="button"
-          onClick={handleSaveAndProceed}
-          className="w-full py-4 bg-[#00A86B] hover:bg-[#00925D] text-white font-black text-sm rounded-full shadow-lg shadow-[#00A86B]/30 flex items-center justify-between px-6 transition-all btn-tactile"
-        >
-          <span>เริ่มต้นเลือกเมนู (Get Started)</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
-      </div>
-
-      <BottomNav />
-    </div>
+    </main>
   );
 }

@@ -64,7 +64,7 @@ module.exports = {
         sm: 'calc(var(--radius) - 4px)',
       },
       fontFamily: {
-        sans: ['Prompt', 'var(--font-jakarta)', 'system-ui', 'sans-serif'],
+        sans: ['Noto Sans Thai', 'sans-serif'],
       },
       boxShadow: {
         'fresh': '0 12px 32px -4px rgba(0, 168, 107, 0.18), 0 4px 12px -2px rgba(0, 0, 0, 0.04)',

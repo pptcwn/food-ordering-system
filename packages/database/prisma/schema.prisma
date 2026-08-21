@@ -192,6 +192,11 @@ model Branch {
   paymentReceiverValue String?              @map("payment_receiver_value") // Phone or Account No.
   paymentReceiverName  String?              @map("payment_receiver_name")
   paymentReceiverBank  String?              @map("payment_receiver_bank")
+  storefrontCoverUrl   String?              @map("storefront_cover_url")
+  storefrontProfileUrl String?              @map("storefront_profile_url")
+  storefrontHeadline   String?              @map("storefront_headline")
+  storefrontSubheadline String?             @map("storefront_subheadline")
+  storefrontThemeColor String?               @map("storefront_theme_color")
   createdAt            DateTime             @default(now()) @map("created_at")
   updatedAt            DateTime             @updatedAt @map("updated_at")
 

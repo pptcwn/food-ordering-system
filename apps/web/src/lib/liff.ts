@@ -15,6 +15,20 @@ let isLiffInitialized = false;
 export async function initLiff(liffId?: string): Promise<LineProfile | null> {
   if (typeof window === 'undefined') return null;
 
+  // Local demo must win over a configured LIFF ID so an operator can exercise
+  // customer flows in a regular browser without a LINE session.
+  if (process.env.NEXT_PUBLIC_DEV_DEMO_ENABLED === 'true') {
+    try {
+      const authRes: any = await apiClient.post('/auth/dev/customer');
+      if (authRes?.accessToken) {
+        localStorage.setItem('access_token', authRes.accessToken);
+      }
+    } catch (error) {
+      console.warn('Development demo login unavailable:', error);
+    }
+    return null;
+  }
+
   const targetLiffId =
     liffId ||
     process.env.NEXT_PUBLIC_LIFF_ID ||
@@ -23,16 +37,6 @@ export async function initLiff(liffId?: string): Promise<LineProfile | null> {
 
   if (!targetLiffId) {
     console.log('ℹ️ LIFF ID not provided, running in Web/Guest mode');
-    if (process.env.NEXT_PUBLIC_DEV_DEMO_ENABLED === 'true') {
-      try {
-        const authRes: any = await apiClient.post('/auth/dev/customer');
-        if (authRes?.accessToken) {
-          localStorage.setItem('access_token', authRes.accessToken);
-        }
-      } catch (error) {
-        console.warn('Development demo login unavailable:', error);
-      }
-    }
     return null;
   }
 

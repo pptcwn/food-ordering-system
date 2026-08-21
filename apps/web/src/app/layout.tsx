@@ -18,13 +18,13 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@100..900&display=swap"
           rel="stylesheet"
         />
       </head>
       <body className="min-h-[100dvh] bg-slate-100 text-slate-900 font-sans selection:bg-emerald-500 selection:text-white antialiased">
         <Providers>
-          <div className="max-w-[480px] mx-auto min-h-[100dvh] bg-white shadow-2xl flex flex-col relative border-x border-slate-200/80">
+          <div className="w-full min-h-[100dvh] bg-white shadow-2xl flex flex-col relative border-x border-slate-200/80 lg:max-w-none lg:shadow-none">
             {children}
           </div>
         </Providers>

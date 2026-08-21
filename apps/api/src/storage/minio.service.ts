@@ -36,24 +36,23 @@ export class MinioService implements OnModuleInit {
         if (!exists) {
           await this.client.makeBucket(bucket, 'us-east-1');
           this.logger.log(` Created MinIO bucket: ${bucket}`);
+        }
 
-          // If it's the products bucket, set public read policy
-          if (bucket === BUCKET_NAMES.PRODUCTS) {
-            const policy = {
-              Version: '2012-10-17',
-              Statement: [
-                {
-                  Sid: 'PublicRead',
-                  Effect: 'Allow',
-                  Principal: '*',
-                  Action: ['s3:GetObject'],
-                  Resource: [`arn:aws:s3:::${bucket}/*`],
-                },
-              ],
-            };
-            await this.client.setBucketPolicy(bucket, JSON.stringify(policy));
-            this.logger.log(` Set public read policy on bucket: ${bucket}`);
-          }
+        if (bucket === BUCKET_NAMES.PRODUCTS) {
+          const policy = {
+            Version: '2012-10-17',
+            Statement: [
+              {
+                Sid: 'PublicRead',
+                Effect: 'Allow',
+                Principal: '*',
+                Action: ['s3:GetObject'],
+                Resource: [`arn:aws:s3:::${bucket}/*`],
+              },
+            ],
+          };
+          await this.client.setBucketPolicy(bucket, JSON.stringify(policy));
+          this.logger.log(` Set public read policy on bucket: ${bucket}`);
         }
       } catch (error) {
         this.logger.warn(`Could not verify/create bucket ${bucket}: ${error}`);

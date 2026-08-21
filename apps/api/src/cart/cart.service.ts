@@ -22,6 +22,60 @@ export class CartService {
 
   constructor(private prisma: PrismaService) {}
 
+  private normalizeSpecialNote(note?: string | null) {
+    return note?.trim() || '';
+  }
+
+  private hasSameModifiers(
+    cartItemModifiers: Array<{ modifierId: string }>,
+    selectedModifierIds: string[],
+  ) {
+    if (cartItemModifiers.length !== selectedModifierIds.length) {
+      return false;
+    }
+
+    const existingIds = cartItemModifiers.map((modifier) => modifier.modifierId).sort();
+    const selectedIds = [...selectedModifierIds].sort();
+    return existingIds.every((modifierId, index) => modifierId === selectedIds[index]);
+  }
+
+  private cartItemSignature(item: {
+    productId: string;
+    productVariantId: string | null;
+    specialNote: string | null;
+    modifiers: Array<{ modifierId: string }>;
+  }) {
+    const modifierIds = item.modifiers.map((modifier) => modifier.modifierId).sort();
+    return [
+      item.productId,
+      item.productVariantId || '',
+      this.normalizeSpecialNote(item.specialNote),
+      modifierIds.join(','),
+    ].join('|');
+  }
+
+  private async findMatchingCartItems(cartItemId: string, userId: string) {
+    const item = await this.prisma.cartItem.findFirst({
+      where: { id: cartItemId, cart: { userId } },
+      include: { modifiers: true },
+    });
+
+    if (!item) {
+      throw new NotFoundException('Cart item not found');
+    }
+
+    const candidates = await this.prisma.cartItem.findMany({
+      where: {
+        cartId: item.cartId,
+        productId: item.productId,
+        productVariantId: item.productVariantId,
+      },
+      include: { modifiers: true },
+    });
+    const signature = this.cartItemSignature(item);
+    return candidates.filter((candidate) => this.cartItemSignature(candidate) === signature);
+  }
+
   /**
    * Find or create an active cart for user or guest session
    */
@@ -101,7 +155,20 @@ export class CartService {
     let totalItems = 0;
     let hasUnavailableItems = false;
 
-    const formattedItems = cart.items.map((item) => {
+    // Older carts can contain duplicate rows from the previous add-item behavior.
+    // Group them for display until the next cart mutation consolidates them in storage.
+    const groupedItems = new Map<string, (typeof cart.items)[number]>();
+    for (const item of cart.items) {
+      const signature = this.cartItemSignature(item);
+      const existingItem = groupedItems.get(signature);
+      if (existingItem) {
+        existingItem.quantity += item.quantity;
+      } else {
+        groupedItems.set(signature, { ...item });
+      }
+    }
+
+    const formattedItems = [...groupedItems.values()].map((item) => {
       const isProductAvailable = item.product.isActive && item.product.isAvailable;
       if (!isProductAvailable) {
         hasUnavailableItems = true;
@@ -232,8 +299,40 @@ export class CartService {
       });
     }
 
-    // 5. Create Cart Item and linked Modifiers
-    const cartItem = await this.prisma.cartItem.create({
+    // 5. Merge identical selections into one line item. Different notes, variants,
+    // or modifier sets stay separate so kitchen instructions are preserved.
+    const matchingItems = await this.prisma.cartItem.findMany({
+      where: {
+        cartId: cart.id,
+        productId: dto.productId,
+        productVariantId: dto.productVariantId ?? null,
+      },
+      include: { modifiers: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    const identicalItems = matchingItems.filter(
+      (item) =>
+        this.normalizeSpecialNote(item.specialNote) === this.normalizeSpecialNote(dto.specialNote) &&
+        this.hasSameModifiers(item.modifiers, selectedModifierIds),
+    );
+
+    if (identicalItems.length > 0) {
+      const [itemToKeep, ...duplicates] = identicalItems;
+      const mergedQuantity = identicalItems.reduce((sum, item) => sum + item.quantity, 0) + (dto.quantity || 1);
+
+      await this.prisma.$transaction([
+        this.prisma.cartItem.update({
+          where: { id: itemToKeep.id },
+          data: { quantity: mergedQuantity },
+        }),
+        ...duplicates.map((item) => this.prisma.cartItem.delete({ where: { id: item.id } })),
+      ]);
+
+      return this.getCart(userId);
+    }
+
+    // 6. Create Cart Item and linked Modifiers when no matching selection exists.
+    await this.prisma.cartItem.create({
       data: {
         cartId: cart.id,
         productId: dto.productId,
@@ -264,25 +363,24 @@ export class CartService {
    * Update Cart Item quantity or note
    */
   async updateItem(itemId: string, dto: UpdateCartItemDto, userId: string) {
-    const item = await this.prisma.cartItem.findFirst({
-      where: { id: itemId, cart: { userId } },
-      include: { product: true },
-    });
-
-    if (!item) {
-      throw new NotFoundException('Cart item not found');
-    }
+    const matchingItems = await this.findMatchingCartItems(itemId, userId);
+    const [itemToKeep, ...duplicates] = matchingItems;
 
     if (dto.quantity <= 0) {
-      await this.prisma.cartItem.delete({ where: { id: itemId } });
-    } else {
-      await this.prisma.cartItem.update({
-        where: { id: itemId },
-        data: {
-          quantity: dto.quantity,
-          specialNote: dto.specialNote !== undefined ? dto.specialNote : item.specialNote,
-        },
+      await this.prisma.cartItem.deleteMany({
+        where: { id: { in: matchingItems.map((item) => item.id) } },
       });
+    } else {
+      await this.prisma.$transaction([
+        this.prisma.cartItem.update({
+          where: { id: itemToKeep.id },
+          data: {
+            quantity: dto.quantity,
+            specialNote: dto.specialNote !== undefined ? dto.specialNote : itemToKeep.specialNote,
+          },
+        }),
+        ...duplicates.map((item) => this.prisma.cartItem.delete({ where: { id: item.id } })),
+      ]);
     }
 
     return this.getCart(userId);
@@ -292,8 +390,9 @@ export class CartService {
    * Remove item from cart
    */
   async removeItem(itemId: string, userId: string) {
+    const matchingItems = await this.findMatchingCartItems(itemId, userId);
     await this.prisma.cartItem.deleteMany({
-      where: { id: itemId, cart: { userId } },
+      where: { id: { in: matchingItems.map((item) => item.id) } },
     });
 
     return this.getCart(userId);

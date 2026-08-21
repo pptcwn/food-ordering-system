@@ -15,13 +15,17 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '@food-ordering/types';
+import { ConfigService } from '@nestjs/config';
 
 @ApiTags('Storage & Media')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.BRANCH_MANAGER)
 @Controller('storage')
 export class StorageController {
-  constructor(private minioService: MinioService) {}
+  constructor(
+    private minioService: MinioService,
+    private configService: ConfigService,
+  ) {}
 
   @Post('upload')
   @ApiOperation({ summary: 'Upload product image or store banner' })
@@ -54,7 +58,7 @@ export class StorageController {
         file.mimetype,
       );
 
-      const endpoint = process.env.MINIO_SERVER_URL || 'http://34.126.172.168:9000';
+      const endpoint = this.getPublicEndpoint();
       const url = `${endpoint}/${BUCKET_NAMES.PRODUCTS}/${objectName}`;
 
       return {
@@ -71,5 +75,15 @@ export class StorageController {
         url: base64,
       };
     }
+  }
+
+  private getPublicEndpoint() {
+    const configuredUrl = this.configService.get<string>('MINIO_SERVER_URL');
+    if (configuredUrl) return configuredUrl.replace(/\/$/, '');
+
+    const endpoint = this.configService.get<string>('MINIO_ENDPOINT', 'localhost');
+    const port = this.configService.get<number>('MINIO_PORT', 9000);
+    const useSsl = this.configService.get<string>('MINIO_USE_SSL', 'false') === 'true';
+    return `${useSsl ? 'https' : 'http'}://${endpoint}:${port}`;
   }
 }

@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { formatPrice } from '@/lib/utils';
+import { useFeedback } from '@/components/ui/feedback-provider';
 import { WS_EVENTS, OrderStatus } from '@food-ordering/types';
 import {
   ArrowLeft,
@@ -120,6 +121,7 @@ export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { notify } = useFeedback();
   const orderId = params.id as string;
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -386,7 +388,7 @@ export default function OrderDetailPage() {
                 โทรหาคนขับ
               </a>
               <button
-                onClick={() => alert('เปิดการสนทนากับคนขับ')}
+                onClick={() => notify('กำลังเปิดการสนทนากับคนขับ', 'info')}
                 className="flex items-center justify-center gap-2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-colors btn-tactile"
               >
                 <MessageCircle className="w-3.5 h-3.5" />

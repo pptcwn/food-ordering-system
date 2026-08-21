@@ -58,7 +58,16 @@ export default function DeliveryDashboardPage() {
 
   // Complete Delivery with Photo Proof
   const completeDeliveryMutation = useMutation({
-    mutationFn: async ({ orderId, note }: { orderId: string; note?: string }) => {
+    mutationFn: async ({ orderId, deliveryId, note }: { orderId: string; deliveryId?: string; note?: string }) => {
+      if (deliveryId) {
+        const formData = new FormData();
+        if (proofImage) formData.append('proofPhoto', proofImage);
+        if (note) formData.append('note', note);
+        return apiClient.patch(`/delivery/jobs/${deliveryId}/delivered`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      }
+
       return apiClient.patch(`/orders/admin/${orderId}/status`, {
         status: OrderStatus.DELIVERED,
         changedBy: 'RIDER_STAFF',
@@ -252,12 +261,13 @@ export default function DeliveryDashboardPage() {
 
       {/* 3. Confirm Delivery Modal with Photo Capture */}
       {confirmingOrder && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-white rounded-3xl p-5 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-4" role="presentation" onClick={() => setConfirmingOrder(null)}>
+          <div className="w-full max-w-sm bg-white rounded-3xl p-5 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150" role="dialog" aria-modal="true" aria-labelledby="delivery-dialog-title" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="font-bold text-sm text-slate-900">ยืนยันการจัดส่งสำเร็จ</h3>
+              <h3 id="delivery-dialog-title" className="font-bold text-sm text-slate-900">ยืนยันการจัดส่งสำเร็จ</h3>
               <button
                 onClick={() => setConfirmingOrder(null)}
+                aria-label="ปิดหน้าต่างยืนยันการจัดส่ง"
                 className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center"
               >
                 <X className="w-4 h-4" />
@@ -267,6 +277,13 @@ export default function DeliveryDashboardPage() {
             <p className="text-xs text-slate-600">
               คุณได้ส่งมอบอาหารใหักับ <strong>{confirmingOrder.customerName}</strong> เรียบร้อยแล้ว
             </p>
+
+            <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileChange} className="sr-only" />
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-xs font-bold text-slate-700">
+              <Camera className="mr-2 inline-block h-4 w-4 text-[#06C755]" />
+              {proofImage ? proofImage.name : 'ถ่ายรูปหรือเลือกรูปหลักฐานการจัดส่ง'}
+            </button>
+            {proofPreview && <img src={proofPreview} alt="ตัวอย่างรูปหลักฐานการจัดส่ง" className="max-h-40 w-full rounded-xl object-cover" />}
 
             <input
               type="text"
@@ -280,6 +297,7 @@ export default function DeliveryDashboardPage() {
               onClick={() =>
                 completeDeliveryMutation.mutate({
                   orderId: confirmingOrder.id,
+                  deliveryId: confirmingOrder.delivery?.id,
                   note: deliveryNote,
                 })
               }

@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { formatPrice } from '@/lib/utils';
-import BottomNav from '@/components/BottomNav';
+import { ProductThumbnail } from '@/components/customer/product-thumbnail';
 import {
   ArrowLeft,
   Trash2,
@@ -76,13 +76,12 @@ export default function CartPage() {
         >
           กลับไปเลือกอาหาร
         </button>
-        <BottomNav />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col justify-between bg-[#FAF8F5] min-h-screen pb-32">
+    <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-1 flex-col justify-between bg-[#FAF8F5] pb-28">
       <div>
         {/* Top Header (Matching Reference Screen 5) */}
         <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md px-5 py-3.5 flex items-center justify-between border-b border-slate-100 shadow-xs">
@@ -119,24 +118,15 @@ export default function CartPage() {
               {cart.items.map((item: any) => (
                 <div key={item.id} className="py-3.5 flex gap-3.5 first:pt-0 last:pb-0 items-center">
                   {/* Item Image */}
-                  <div className="w-18 h-18 rounded-2xl bg-slate-50 flex-shrink-0 overflow-hidden flex items-center justify-center border border-slate-100 shadow-xs">
-                    {item.product?.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.product.imageUrl}
-                        alt={item.product.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <ShoppingBag className="w-6 h-6 text-slate-300" />
-                    )}
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-[#D5E5DA] shadow-xs">
+                    <ProductThumbnail src={item.imageUrl} alt={item.productName || 'สินค้าในตะกร้า'} />
                   </div>
 
                   {/* Item Details */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between">
                       <h3 className="font-extrabold text-xs text-slate-900 truncate">
-                        {item.product?.name}
+                        {item.productName}
                       </h3>
                       <button
                         onClick={() => removeItemMutation.mutate(item.id)}
@@ -149,13 +139,13 @@ export default function CartPage() {
                     {/* Modifiers info */}
                     {item.modifiers && item.modifiers.length > 0 && (
                       <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                        {item.modifiers.map((m: any) => m.modifier?.name).join(', ')}
+                        {item.modifiers.map((m: any) => m.name).join(', ')}
                       </p>
                     )}
 
                     <div className="flex items-center justify-between mt-2.5">
                       <span className="font-black text-sm text-slate-900">
-                        {formatPrice(item.totalPrice)}
+                        {formatPrice(item.itemLineTotal)}
                       </span>
 
                       {/* Stepper (Matching Screen 5 `[- 1 +]`) */}
@@ -203,7 +193,7 @@ export default function CartPage() {
                 type="text"
                 value={promoCode}
                 onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                placeholder="มีโค้ดส่วนลดหรือไม่? (Have a promo code?)"
+                placeholder="มีโค้ดส่วนลดหรือไม่"
                 className="w-full text-xs bg-transparent focus:outline-none placeholder-slate-400 font-medium"
               />
             </div>
@@ -211,18 +201,18 @@ export default function CartPage() {
               onClick={() => setAppliedPromo(true)}
               className="text-xs font-black text-[#00A86B] hover:underline px-2 py-1 flex-shrink-0"
             >
-              {appliedPromo ? '✓ ใช้แล้ว' : 'Apply'}
+              {appliedPromo ? '✓ ใช้แล้ว' : 'ใช้โค้ด'}
             </button>
           </div>
 
           {/* Pricing Breakdown Card (Matching Screen 5) */}
           <div className="bg-white rounded-3xl p-4 border border-slate-100 shadow-soft space-y-2.5 text-xs text-slate-600">
             <div className="flex justify-between">
-              <span>ราคารวมค่าอาหาร (Subtotal)</span>
+              <span>ค่าอาหาร</span>
               <span className="font-bold text-slate-800">{formatPrice(subtotal)}</span>
             </div>
             <div className="flex justify-between">
-              <span>ค่าจัดส่ง (Delivery Fee)</span>
+              <span>ค่าจัดส่ง</span>
               <span className="font-bold text-[#00A86B]">ฟรีโปรโมชั่น</span>
             </div>
             {appliedPromo && (
@@ -232,7 +222,7 @@ export default function CartPage() {
               </div>
             )}
             <div className="border-t border-slate-100 pt-2.5 flex justify-between items-center text-sm font-black text-slate-900">
-              <span>ยอดชำระสุทธิ (Total)</span>
+              <span>ยอดชำระสุทธิ</span>
               <span className="text-base text-[#00A86B] font-black">
                 {formatPrice(grandTotal)}
               </span>
@@ -242,18 +232,16 @@ export default function CartPage() {
       </div>
 
       {/* Floating Bottom CTA (Matching Screen 5 "Proceed to Checkout ➔") */}
-      <div className="fixed bottom-16 inset-x-0 max-w-[480px] mx-auto px-4 z-40">
+      <div className="fixed bottom-0 inset-x-0 z-40 mx-auto w-full max-w-3xl border-t border-slate-100 bg-white/95 p-4 backdrop-blur-md">
         <button
           onClick={() => router.push('/checkout')}
           disabled={cart.hasUnavailableItems}
           className="w-full py-4 bg-[#00A86B] hover:bg-[#00925D] text-white font-extrabold text-sm rounded-full shadow-lg shadow-[#00A86B]/30 flex items-center justify-between px-6 transition-all btn-tactile disabled:opacity-50"
         >
-          <span>ดำเนินการสั่งซื้อ (Proceed to Checkout)</span>
+          <span>ตรวจสอบและยืนยันออเดอร์</span>
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
-
-      <BottomNav />
     </div>
   );
 }

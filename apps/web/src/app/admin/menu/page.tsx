@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
+import { useFeedback } from '@/components/ui/feedback-provider';
 import {
   Utensils,
   Plus,
@@ -43,6 +44,7 @@ const PRESET_FOOD_IMAGES = [
 export default function AdminMenuManagerPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { confirm, notify } = useFeedback();
 
   const [activeTab, setActiveTab] = useState<'MENU' | 'DECORATE' | 'CATEGORIES'>('MENU');
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,6 +54,7 @@ export default function AdminMenuManagerPage() {
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<any>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   // Form States for Product
@@ -67,11 +70,13 @@ export default function AdminMenuManagerPage() {
   // Category Form State
   const [newCategoryName, setNewCategoryName] = useState('');
 
-  // Store Decoration Form State
-  const [storeBanner, setStoreBanner] = useState({
-    headline: 'ส่งฟรีทุกออเดอร์ วันนี้!',
-    subheadline: 'เมื่อสั่งซื้อขั้นต่ำ ฿150 ขึ้นไป',
-    themeColor: '#06C755',
+  const [selectedBranchId, setSelectedBranchId] = useState('');
+  const [storefront, setStorefront] = useState({
+    coverUrl: '',
+    profileUrl: '',
+    headline: '',
+    subheadline: '',
+    themeColor: '#1F5D45',
   });
 
   // Fetch Categories & Menu
@@ -86,6 +91,29 @@ export default function AdminMenuManagerPage() {
     queryFn: () => apiClient.get('/branches'),
   });
 
+  const { data: selectedBranch, isLoading: isLoadingStorefront } = useQuery<any>({
+    queryKey: ['branch-storefront', selectedBranchId],
+    queryFn: () => apiClient.get(`/branches/${selectedBranchId}`),
+    enabled: Boolean(selectedBranchId),
+  });
+
+  useEffect(() => {
+    if (!selectedBranchId && branches.length > 0) {
+      setSelectedBranchId(branches[0].id);
+    }
+  }, [branches, selectedBranchId]);
+
+  useEffect(() => {
+    if (!selectedBranch) return;
+    setStorefront({
+      coverUrl: selectedBranch.storefrontCoverUrl || '',
+      profileUrl: selectedBranch.storefrontProfileUrl || '',
+      headline: selectedBranch.storefrontHeadline || '',
+      subheadline: selectedBranch.storefrontSubheadline || '',
+      themeColor: selectedBranch.storefrontThemeColor || '#1F5D45',
+    });
+  }, [selectedBranch]);
+
   // Create Product Mutation
   const createProductMutation = useMutation({
     mutationFn: (data: any) => apiClient.post('/admin/products', data),
@@ -94,8 +122,9 @@ export default function AdminMenuManagerPage() {
       queryClient.invalidateQueries({ queryKey: ['menu'] });
       setIsProductModalOpen(false);
       resetProductForm();
+      notify('เพิ่มเมนูอาหารเรียบร้อยแล้ว', 'success');
     },
-    onError: (err: any) => alert(err.message || 'ไม่สามารถสร้างเมนูได้'),
+    onError: (err: any) => notify(err.message || 'ไม่สามารถสร้างเมนูได้', 'error'),
   });
 
   // Update Product Mutation
@@ -107,8 +136,9 @@ export default function AdminMenuManagerPage() {
       queryClient.invalidateQueries({ queryKey: ['menu'] });
       setIsProductModalOpen(false);
       resetProductForm();
+      notify('บันทึกการแก้ไขเมนูแล้ว', 'success');
     },
-    onError: (err: any) => alert(err.message || 'ไม่สามารถแก้ไขเมนูได้'),
+    onError: (err: any) => notify(err.message || 'ไม่สามารถแก้ไขเมนูได้', 'error'),
   });
 
   // Delete Product Mutation
@@ -117,7 +147,9 @@ export default function AdminMenuManagerPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-menu-categories'] });
       queryClient.invalidateQueries({ queryKey: ['menu'] });
+      notify('ลบเมนูออกจากรายการแล้ว', 'success');
     },
+    onError: (err: any) => notify(err.message || 'ไม่สามารถลบเมนูได้', 'error'),
   });
 
   // Toggle Availability Mutation
@@ -138,7 +170,49 @@ export default function AdminMenuManagerPage() {
       queryClient.invalidateQueries({ queryKey: ['menu'] });
       setIsCategoryModalOpen(false);
       setNewCategoryName('');
+      notify('เพิ่มหมวดหมู่เรียบร้อยแล้ว', 'success');
     },
+    onError: (err: any) => notify(err.message || 'ไม่สามารถเพิ่มหมวดหมู่ได้', 'error'),
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) => apiClient.patch(`/categories/admin/${id}`, { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-menu-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['menu'] });
+      setIsCategoryModalOpen(false);
+      setEditingCategory(null);
+      setNewCategoryName('');
+      notify('บันทึกการแก้ไขหมวดหมู่แล้ว', 'success');
+    },
+    onError: (err: any) => notify(err.message || 'ไม่สามารถแก้ไขหมวดหมู่ได้', 'error'),
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/categories/admin/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-menu-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['menu'] });
+      notify('ลบหมวดหมู่ออกจากหน้าร้านแล้ว', 'success');
+    },
+    onError: (err: any) => notify(err.message || 'ไม่สามารถลบหมวดหมู่ได้', 'error'),
+  });
+
+  const updateStorefrontMutation = useMutation({
+    mutationFn: (data: typeof storefront) =>
+      apiClient.patch(`/branches/${selectedBranchId}/storefront`, {
+        storefrontCoverUrl: data.coverUrl || null,
+        storefrontProfileUrl: data.profileUrl || null,
+        storefrontHeadline: data.headline.trim() || null,
+        storefrontSubheadline: data.subheadline.trim() || null,
+        storefrontThemeColor: data.themeColor,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['branch-storefront', selectedBranchId] });
+      queryClient.invalidateQueries({ queryKey: ['branches'] });
+      notify('บันทึกหน้าร้านเรียบร้อยแล้ว', 'success');
+    },
+    onError: (err: any) => notify(err.message || 'ไม่สามารถบันทึกหน้าร้านได้', 'error'),
   });
 
   const resetProductForm = () => {
@@ -174,6 +248,41 @@ export default function AdminMenuManagerPage() {
     setIsProductModalOpen(true);
   };
 
+  const handleOpenCreateCategory = () => {
+    setEditingCategory(null);
+    setNewCategoryName('');
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleOpenEditCategory = (category: any) => {
+    setEditingCategory(category);
+    setNewCategoryName(category.name);
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleSaveCategory = () => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    if (editingCategory) {
+      updateCategoryMutation.mutate({ id: editingCategory.id, name });
+      return;
+    }
+    createCategoryMutation.mutate(name);
+  };
+
+  const handleDeleteCategory = async (category: any) => {
+    if (deleteCategoryMutation.isPending) return;
+    const confirmed = await confirm({
+      title: 'ลบหมวดหมู่นี้?',
+      description: category.products?.length
+        ? `เมนู ${category.products.length} รายการในหมวด “${category.name}” จะไม่แสดงที่หน้าร้าน แต่ข้อมูลเดิมยังเก็บไว้`
+        : `หมวด “${category.name}” จะไม่แสดงที่หน้าร้าน แต่ข้อมูลเดิมยังเก็บไว้`,
+      confirmLabel: 'ลบหมวดหมู่',
+      destructive: true,
+    });
+    if (confirmed) deleteCategoryMutation.mutate(category.id);
+  };
+
   // Image Upload Handler
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -202,10 +311,33 @@ export default function AdminMenuManagerPage() {
     }
   };
 
+  const handleStorefrontImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: 'coverUrl' | 'profileUrl',
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const data = new FormData();
+    data.append('file', file);
+
+    try {
+      const res: any = await apiClient.post('/storage/upload', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      if (res.url) setStorefront((current) => ({ ...current, [field]: res.url }));
+    } catch (err: any) {
+      notify(err.message || 'ไม่สามารถอัปโหลดรูปภาพได้', 'error');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleSaveProduct = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.basePrice) {
-      alert('กรุณากรอกชื่อและราคาอาหาร');
+      notify('กรุณากรอกชื่อและราคาอาหาร', 'warning');
       return;
     }
 
@@ -440,9 +572,14 @@ export default function AdminMenuManagerPage() {
                                   </button>
                                   <button
                                     onClick={() => {
-                                      if (confirm(`คุณต้องการลบเมนู "${product.name}" ใช่หรือไม่?`)) {
-                                        deleteProductMutation.mutate(product.id);
-                                      }
+                                      void confirm({
+                                        title: 'ลบเมนูนี้หรือไม่?',
+                                        description: `เมนู “${product.name}” จะหายจากหน้าร้านทันที`,
+                                        confirmLabel: 'ลบเมนู',
+                                        destructive: true,
+                                      }).then((isConfirmed) => {
+                                        if (isConfirmed) deleteProductMutation.mutate(product.id);
+                                      });
                                     }}
                                     className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
                                     title="ลบเมนู"
@@ -465,72 +602,75 @@ export default function AdminMenuManagerPage() {
 
       {/* 4. TAB 2: STORE DECORATION & BANNER */}
       {activeTab === 'DECORATE' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Banner Settings */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">
-                ตกแต่งแบนเนอร์โปรโมชั่นหน้าร้าน
-              </h2>
-              <p className="text-xs text-slate-500">
-                ข้อความนี้จะแสดงด้านบนสุดของหน้าเมนูอาหารสำหรับลูกค้าทุกคน
-              </p>
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_440px] gap-5 items-start">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">หน้าร้านที่ลูกค้าเห็น</h2>
+                <p className="text-xs text-slate-500">อัปโหลดภาพปกและโลโก้ พร้อมกำหนดข้อความต้อนรับของแต่ละสาขา</p>
+              </div>
+              <select
+                value={selectedBranchId}
+                onChange={(e) => setSelectedBranchId(e.target.value)}
+                className="min-w-40 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#06C755]"
+              >
+                {branches.map((branch: any) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
+              </select>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">
-                  หัวข้อโปรโมชั่นหลัก (Headline)
-                </label>
-                <input
-                  type="text"
-                  value={storeBanner.headline}
-                  onChange={(e) => setStoreBanner({ ...storeBanner, headline: e.target.value })}
-                  placeholder="เช่น ส่งฟรีทุกออเดอร์ วันนี้!"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#06C755]"
-                />
-              </div>
+            {isLoadingStorefront ? (
+              <div className="py-16 flex justify-center"><Loader2 className="w-6 h-6 text-[#06C755] animate-spin" /></div>
+            ) : (
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-[1.7fr_1fr] gap-4">
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-slate-800">ภาพปกหน้าร้าน</label>
+                    <label className="group relative block aspect-[16/7] overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 cursor-pointer hover:border-[#06C755] transition-colors">
+                      {storefront.coverUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={storefront.coverUrl} alt="ภาพปกหน้าร้าน" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 gap-2"><ImageIcon className="w-7 h-7" /><span className="text-xs font-bold">อัปโหลดภาพแนวนอน</span></span>
+                      )}
+                      <span className="absolute inset-0 bg-slate-950/0 group-hover:bg-slate-950/40 transition-colors flex items-center justify-center"><span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white text-slate-800 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5"><Upload className="w-3.5 h-3.5" />เปลี่ยนภาพปก</span></span>
+                      <input type="file" accept="image/*" onChange={(e) => handleStorefrontImageUpload(e, 'coverUrl')} className="hidden" />
+                    </label>
+                    <p className="text-[11px] text-slate-400">แนะนำอัตราส่วน 16:7 เพื่อให้ครอบคลุมทุกขนาดหน้าจอ</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs font-bold text-slate-800">รูปโปรไฟล์ร้าน</label>
+                    <label className="group relative mx-auto block w-36 aspect-square overflow-hidden rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50 cursor-pointer hover:border-[#06C755] transition-colors">
+                      {storefront.profileUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={storefront.profileUrl} alt="รูปโปรไฟล์ร้าน" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 gap-2"><Store className="w-7 h-7" /><span className="text-xs font-bold">โลโก้ร้าน</span></span>
+                      )}
+                      <span className="absolute inset-0 bg-slate-950/0 group-hover:bg-slate-950/40 transition-colors flex items-center justify-center"><Camera className="w-5 h-5 text-white opacity-0 group-hover:opacity-100" /></span>
+                      <input type="file" accept="image/*" onChange={(e) => handleStorefrontImageUpload(e, 'profileUrl')} className="hidden" />
+                    </label>
+                    <p className="text-center text-[11px] text-slate-400">รูปสี่เหลี่ยมจัตุรัส</p>
+                  </div>
+                </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">
-                  เงื่อนไขโปรโมชั่น (Subheadline)
-                </label>
-                <input
-                  type="text"
-                  value={storeBanner.subheadline}
-                  onChange={(e) => setStoreBanner({ ...storeBanner, subheadline: e.target.value })}
-                  placeholder="เช่น เมื่อสั่งซื้อขั้นต่ำ ฿150 ขึ้นไป"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#06C755]"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div><label className="block text-xs font-bold text-slate-800 mb-1">ข้อความต้อนรับ</label><input value={storefront.headline} onChange={(e) => setStorefront({ ...storefront, headline: e.target.value })} placeholder="เช่น อร่อยทุกวัน ส่งถึงบ้าน" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#06C755]" /></div>
+                  <div><label className="block text-xs font-bold text-slate-800 mb-1">ข้อความรอง</label><input value={storefront.subheadline} onChange={(e) => setStorefront({ ...storefront, subheadline: e.target.value })} placeholder="เช่น เปิดทุกวัน 10:00 - 22:00" className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#06C755]" /></div>
+                </div>
+                <div className="flex items-center gap-3"><input type="color" value={storefront.themeColor} onChange={(e) => setStorefront({ ...storefront, themeColor: e.target.value })} className="h-10 w-12 cursor-pointer rounded-lg border border-slate-200 bg-white p-1" /><div><p className="text-xs font-bold text-slate-800">สีประจำหน้าร้าน</p><p className="text-[11px] text-slate-400">ใช้เป็นสีพื้นหลังของข้อความต้อนรับ</p></div></div>
+                <button type="button" disabled={!selectedBranchId || isUploading || updateStorefrontMutation.isPending} onClick={() => updateStorefrontMutation.mutate(storefront)} className="w-full py-3 bg-[#1F5D45] hover:bg-[#174733] text-white font-bold text-sm rounded-xl shadow-md transition-colors btn-tactile disabled:opacity-50 flex items-center justify-center gap-2">{isUploading || updateStorefrontMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{isUploading ? 'กำลังอัปโหลดรูปภาพ...' : updateStorefrontMutation.isPending ? 'กำลังบันทึก...' : 'บันทึกหน้าร้าน'}</button>
               </div>
-            </div>
-
-            <button
-              onClick={() => alert('บันทึกการตกแต่งแบนเนอร์หน้าร้านเรียบร้อยแล้ว!')}
-              className="w-full py-3 bg-[#06C755] hover:bg-[#05A848] text-white font-bold text-xs rounded-xl shadow-md transition-colors btn-tactile"
-            >
-              บันทึกการตกแต่ง
-            </button>
+            )}
           </div>
 
-          {/* Live Banner Preview */}
-          <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-            <h2 className="text-base font-bold text-slate-900">ตัวอย่างการแสดงผลหน้าร้าน</h2>
-            <div className="bg-gradient-to-r from-emerald-600 to-[#06C755] text-white rounded-2xl p-4 shadow-sm relative overflow-hidden flex items-center justify-between">
-              <div className="relative z-10">
-                <span className="text-[10px] font-bold bg-white/20 backdrop-blur-md px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  Special Promo
-                </span>
-                <h3 className="text-base font-extrabold mt-1">{storeBanner.headline}</h3>
-                <p className="text-xs text-white/90 mt-0.5">{storeBanner.subheadline}</p>
+          <div className="sticky top-5 bg-[#FAF8F5] p-4 rounded-3xl border border-[#D5E5DA] shadow-xs space-y-3">
+            <div className="flex items-center justify-between"><h2 className="text-sm font-bold text-slate-900">ตัวอย่างหน้าลูกค้า</h2><span className="text-[10px] font-bold text-slate-400">LIVE PREVIEW</span></div>
+            <div className="overflow-hidden rounded-2xl bg-white shadow-sm border border-slate-100">
+              <div className="h-28 relative" style={{ backgroundColor: storefront.themeColor }}>
+                {storefront.coverUrl && <img src={storefront.coverUrl} alt="ตัวอย่างภาพปก" className="w-full h-full object-cover opacity-85" />}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/55 to-transparent" />
               </div>
-              <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center text-white flex-shrink-0">
-                <Flame className="w-7 h-7 text-amber-300" />
-              </div>
-            </div>
-
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600">
-              💡 <strong>คำแนะนำ:</strong> แบนเนอร์ที่มีโปรโมชั่นชัดเจน (เช่น ส่วนลดหรือส่งฟรี) จะช่วยเพิ่มยอดการสั่งซื้อได้มากกว่า 35%
+              <div className="relative px-4 pb-4"><div className="absolute -top-10 left-4 w-20 h-20 rounded-2xl overflow-hidden bg-white border-4 border-white shadow-md flex items-center justify-center" style={{ color: storefront.themeColor }}>{storefront.profileUrl ? <img src={storefront.profileUrl} alt="ตัวอย่างรูปโปรไฟล์" className="w-full h-full object-cover" /> : <Store className="w-8 h-8" />}</div><div className="pt-12"><h3 className="text-sm font-extrabold text-slate-900">{selectedBranch?.name || 'ชื่อร้านของคุณ'}</h3><p className="mt-1 text-sm font-bold" style={{ color: storefront.themeColor }}>{storefront.headline || 'ข้อความต้อนรับของร้าน'}</p><p className="mt-1 text-xs text-slate-500">{storefront.subheadline || 'เพิ่มรายละเอียดให้ลูกค้ารู้จักร้านของคุณมากขึ้น'}</p></div></div>
             </div>
           </div>
         </div>
@@ -545,7 +685,7 @@ export default function AdminMenuManagerPage() {
               <p className="text-xs text-slate-500">จัดการหมวดหมู่เมนูที่แสดงบนแถบเลื่อนหน้าร้าน</p>
             </div>
             <button
-              onClick={() => setIsCategoryModalOpen(true)}
+              onClick={handleOpenCreateCategory}
               className="px-3.5 py-1.5 bg-[#06C755] hover:bg-[#05A848] text-white font-bold text-xs rounded-xl shadow-xs flex items-center gap-1 btn-tactile"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -564,6 +704,10 @@ export default function AdminMenuManagerPage() {
                     <h3 className="font-bold text-xs text-slate-900">{cat.name}</h3>
                     <p className="text-[11px] text-slate-400">{cat.products?.length || 0} เมนูในหมวดนี้</p>
                   </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => handleOpenEditCategory(cat)} className="rounded-lg p-2 text-slate-500 transition hover:bg-emerald-50 hover:text-[#1F5D45]" aria-label={`แก้ไขหมวดหมู่ ${cat.name}`}><Edit2 className="h-4 w-4" /></button>
+                  <button type="button" disabled={deleteCategoryMutation.isPending} onClick={() => handleDeleteCategory(cat)} className="rounded-lg p-2 text-slate-500 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50" aria-label={`ลบหมวดหมู่ ${cat.name}`}><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
             ))}
@@ -759,9 +903,9 @@ export default function AdminMenuManagerPage() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-5 space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-sm text-slate-900">เพิ่มหมวดหมู่ใหม่</h3>
+              <h3 className="font-bold text-sm text-slate-900">{editingCategory ? 'แก้ไขหมวดหมู่' : 'เพิ่มหมวดหมู่ใหม่'}</h3>
               <button
-                onClick={() => setIsCategoryModalOpen(false)}
+                onClick={() => { setIsCategoryModalOpen(false); setEditingCategory(null); setNewCategoryName(''); }}
                 className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center"
               >
                 <X className="w-3.5 h-3.5" />
@@ -783,15 +927,11 @@ export default function AdminMenuManagerPage() {
             </div>
 
             <button
-              onClick={() => {
-                if (newCategoryName.trim()) {
-                  createCategoryMutation.mutate(newCategoryName.trim());
-                }
-              }}
-              disabled={createCategoryMutation.isPending || !newCategoryName.trim()}
+              onClick={handleSaveCategory}
+              disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending || !newCategoryName.trim()}
               className="w-full py-3 bg-[#06C755] hover:bg-[#05A848] text-white font-bold text-xs rounded-xl shadow-md transition-colors btn-tactile disabled:opacity-50"
             >
-              ยืนยันเพิ่มหมวดหมู่
+              {editingCategory ? 'บันทึกการแก้ไข' : 'ยืนยันเพิ่มหมวดหมู่'}
             </button>
           </div>
         </div>

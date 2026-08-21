@@ -74,6 +74,21 @@ export const UpdateCategorySchema = CreateCategorySchema.partial().extend({
 });
 export type UpdateCategoryDtoType = z.infer<typeof UpdateCategorySchema>;
 
+// Branch storefront customization
+export const UpdateBranchStorefrontSchema = z.object({
+  storefrontCoverUrl: z.string().url().max(2_000).nullable().optional(),
+  storefrontProfileUrl: z.string().url().max(2_000).nullable().optional(),
+  storefrontHeadline: z.string().max(120).nullable().optional(),
+  storefrontSubheadline: z.string().max(200).nullable().optional(),
+  storefrontThemeColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).nullable().optional(),
+});
+export type UpdateBranchStorefrontDtoType = z.infer<typeof UpdateBranchStorefrontSchema>;
+
+export const UpdateBranchSettingsSchema = z.object({
+  name: z.string().trim().min(1, 'Store name is required').max(120),
+});
+export type UpdateBranchSettingsDtoType = z.infer<typeof UpdateBranchSettingsSchema>;
+
 // Product Admin Validation
 export const CreateProductSchema = z.object({
   categoryId: z.string().uuid('Invalid Category ID'),

@@ -12,6 +12,7 @@
     "test:authz": "jest --config jest.authz.config.cjs --runInBand"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
     "@food-ordering/config": "workspace:*",
     "@food-ordering/database": "workspace:*",
     "@food-ordering/types": "workspace:*",

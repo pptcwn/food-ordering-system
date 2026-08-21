@@ -21,6 +21,7 @@ import {
   BarChart3,
   Calendar,
   Utensils,
+  Settings,
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -141,7 +142,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Quick Navigation Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <button
           onClick={() => router.push('/admin/menu')}
           className="p-3.5 bg-white border border-emerald-200 hover:border-[#06C755] rounded-2xl flex items-center justify-between shadow-xs hover:shadow-sm transition text-left"
@@ -217,6 +218,22 @@ export default function AdminDashboardPage() {
             <div>
               <p className="text-xs font-bold text-slate-900">Kitchen KDS</p>
               <p className="text-[10px] text-slate-400">หน้าจอครัว & ออเดอร์</p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-slate-400" />
+        </button>
+
+        <button
+          onClick={() => router.push('/admin/settings')}
+          className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-[#1F5D45] hover:shadow-xs transition text-left"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#EAF3EE] text-[#1F5D45] flex items-center justify-center">
+              <Settings className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-900">การตั้งค่าร้าน</p>
+              <p className="text-[10px] text-slate-400">ชื่อร้าน และหน้าร้าน</p>
             </div>
           </div>
           <ChevronRight className="w-4 h-4 text-slate-400" />
