@@ -93,8 +93,42 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           
           ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$VM_USER@$VM_HOST" << 'EOF'
+            set -euo pipefail
+
             echo "🚀 Starting Automated Deployment on GCP VM..."
-            cd ~/food-ordering-system || cd /home/$USER/food-ordering-system
+            find_deploy_dir() {
+              for candidate in "$HOME/food-ordering-system" /home/*/food-ordering-system /opt/food-ordering-system /srv/food-ordering-system; do
+                [ -d "$candidate/.git" ] || continue
+
+                remote_url="$(git -C "$candidate" remote get-url origin 2>/dev/null || true)"
+                case "$remote_url" in
+                  *pptcwn/food-ordering-system.git)
+                    printf '%s\n' "$candidate"
+                    return 0
+                    ;;
+                esac
+              done
+
+              while IFS= read -r git_dir; do
+                candidate="${git_dir%/.git}"
+                remote_url="$(git -C "$candidate" remote get-url origin 2>/dev/null || true)"
+                case "$remote_url" in
+                  *pptcwn/food-ordering-system.git)
+                    printf '%s\n' "$candidate"
+                    return 0
+                    ;;
+                esac
+              done < <(find /home /opt /srv /root -maxdepth 4 -type d -name .git -print 2>/dev/null)
+
+              return 1
+            }
+
+            DEPLOY_DIR="$(find_deploy_dir)" || {
+              echo "❌ Cannot find the food-ordering-system Git repository on the VM."
+              exit 1
+            }
+            echo "📁 Deploying from $DEPLOY_DIR"
+            cd "$DEPLOY_DIR"
             
             # Pull latest changes from main branch
             git fetch origin main
@@ -103,6 +137,9 @@ jobs:
             # Execute deploy script
             chmod +x deploy-gcp.sh
             ./deploy-gcp.sh
+
+            curl --fail --silent --show-error http://localhost:4000/api/health
+            docker compose -f docker-compose.prod.yml ps
             
             echo "✅ Deployment finished successfully!"
           EOF
