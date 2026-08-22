@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -33,6 +33,7 @@ export default function AdminSettingsPage() {
   const [driverVehiclePlate, setDriverVehiclePlate] = useState('');
   const [editingDriverId, setEditingDriverId] = useState<string | null>(null);
   const [adminUser, setAdminUser] = useState<{ role?: string; branchId?: string | null } | null>(null);
+  const hydratedBranchIdRef = useRef<string | null>(null);
   const mapLatitude = latitude.trim() && Number.isFinite(Number(latitude)) ? Number(latitude) : 13.7563;
   const mapLongitude = longitude.trim() && Number.isFinite(Number(longitude)) ? Number(longitude) : 100.5018;
 
@@ -75,7 +76,8 @@ export default function AdminSettingsPage() {
   }, [managedBranches, selectedBranchId]);
 
   useEffect(() => {
-    if (!branch) return;
+    // Do not overwrite coordinates while this branch's settings form is being edited.
+    if (!branch || hydratedBranchIdRef.current === branch.id) return;
     setStoreName(branch.name || '');
     setPaymentReceiverType(branch.paymentReceiverType || 'PROMPTPAY');
     setPaymentReceiverValue(branch.paymentReceiverValue || '');
@@ -85,6 +87,7 @@ export default function AdminSettingsPage() {
     setLongitude(branch.longitude?.toString() || '');
     setFreeDeliveryDistanceKm(branch.freeDeliveryDistanceKm?.toString() || '3');
     setDeliveryFeePerKm(branch.deliveryFeePerKm?.toString() || '8');
+    hydratedBranchIdRef.current = branch.id;
   }, [branch]);
 
   const updateNameMutation = useMutation({
