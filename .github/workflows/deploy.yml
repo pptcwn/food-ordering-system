@@ -6,6 +6,10 @@ on:
       - main
   workflow_dispatch:
 
+concurrency:
+  group: food-ordering-production-deploy
+  cancel-in-progress: false
+
 jobs:
   test-and-verify:
     name: 🧪 Verify & Typecheck
@@ -92,8 +96,7 @@ jobs:
           echo "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$VM_USER@$VM_HOST" << 'EOF'
-            set -euo pipefail
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$VM_USER@$VM_HOST" 'flock -w 1800 /tmp/food-ordering-production-deploy.lock bash -seuo pipefail' << 'EOF'
 
             echo "🚀 Starting Automated Deployment on GCP VM..."
             find_deploy_dir() {
