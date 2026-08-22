@@ -128,6 +128,10 @@ jobs:
               exit 1
             }
             echo "📁 Deploying from $DEPLOY_DIR"
+            if [ ! -w "$DEPLOY_DIR/.git" ]; then
+              echo "🔧 Restoring repository ownership for $(id -un)..."
+              sudo chown -R "$(id -u):$(id -g)" "$DEPLOY_DIR"
+            fi
             cd "$DEPLOY_DIR"
             
             # Pull latest changes from main branch
