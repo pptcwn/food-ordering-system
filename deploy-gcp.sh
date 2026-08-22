@@ -64,11 +64,6 @@ if ! docker compose -f docker-compose.prod.yml run --rm --no-deps api pnpm --fil
   docker compose -f docker-compose.prod.yml logs --tail=200 api || true
   exit 1
 fi
-if ! docker compose -f docker-compose.prod.yml run --rm --no-deps api pnpm --filter @food-ordering/database run db:seed; then
-  docker compose -f docker-compose.prod.yml logs --tail=200 api || true
-  exit 1
-fi
-
 docker compose -f docker-compose.prod.yml up -d api
 sleep 3
 docker compose -f docker-compose.prod.yml build worker

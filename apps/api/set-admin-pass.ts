@@ -1,15 +1,32 @@
-import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
+import { PrismaClient, UserRole } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const passwordHash = await bcrypt.hash('admin1234', 12);
-  await prisma.user.update({
-    where: { email: 'admin@foodordering.com' },
-    data: { passwordHash },
+  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const passwordHash = process.env.ADMIN_PASSWORD_HASH;
+
+  if (!email || !passwordHash) {
+    throw new Error('ADMIN_EMAIL and ADMIN_PASSWORD_HASH are required');
+  }
+
+  await prisma.user.upsert({
+    where: { email },
+    update: {
+      name: 'PPTCWN Admin',
+      passwordHash,
+      role: UserRole.SUPER_ADMIN,
+      isActive: true,
+    },
+    create: {
+      email,
+      name: 'PPTCWN Admin',
+      passwordHash,
+      role: UserRole.SUPER_ADMIN,
+      isActive: true,
+    },
   });
-  console.log('Updated admin password to: admin1234');
+  console.log(`Provisioned active super admin: ${email}`);
 }
 
 main().then(() => process.exit(0));
