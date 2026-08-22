@@ -1,0 +1,28 @@
+name: Inspect Production Storage
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect-storage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect expense and revenue buckets on the VM
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.GCP_SSH_PRIVATE_KEY }}
+          VM_HOST: ${{ secrets.GCP_VM_HOST }}
+          VM_USER: ${{ secrets.GCP_VM_USERNAME }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" | base64 -d > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$VM_USER@$VM_HOST" << 'EOF'
+            set -euo pipefail
+            cd /home/ptcwnn/food-ordering-system
+            docker compose -f docker-compose.prod.yml run --rm --no-deps api pnpm --filter @food-ordering/api exec node -e '
+              const Minio = require("minio");
+              const client = new Minio.Client({ endPoint: process.env.MINIO_ENDPOINT, port: Number(process.env.MINIO_PORT), useSSL: process.env.MINIO_USE_SSL === "true", accessKey: process.env.MINIO_ACCESS_KEY, secretKey: process.env.MINIO_SECRET_KEY });
+              (async () => { for (const bucket of [process.env.MINIO_EXPENSES_BUCKET || "food-expenses", process.env.MINIO_REVENUE_BUCKET || "food-revenue-documents"]) { const exists = await client.bucketExists(bucket); let objects = 0; if (exists) { for await (const _ of client.listObjectsV2(bucket, "", true)) objects++; } let policy = "private"; try { const value = await client.getBucketPolicy(bucket); if (value.includes("PublicRead") || value.includes('"Principal":"*"')) policy = "public"; } catch {} console.log(JSON.stringify({ bucket, exists, objects, policy })); } })().catch(error => { console.error(error); process.exit(1); });
+            '
+          EOF
