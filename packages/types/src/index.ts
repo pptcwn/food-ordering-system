@@ -108,30 +108,36 @@ export const QUEUE_NAMES = {
 // Slip2Go API Interfaces
 export interface Slip2GoVerifyResponse {
   success: boolean;
+  code?: string | number;
   message?: string;
   data?: {
     transRef: string;
-    date: string;
+    date?: string;
+    dateTime?: string;
     amount: number;
     receiver: {
       account: {
-        name: {
+        name?: {
           th?: string;
           en?: string;
-        };
-        bank: string;
+        } | string;
+        bank?: string | { account?: string };
         accountNumber?: string;
         promptpayNumber?: string;
+        proxy?: { account?: string };
       };
+      bank?: { id?: string; name?: string | null };
     };
     sender: {
       account: {
-        name: {
+        name?: {
           th?: string;
           en?: string;
-        };
-        bank: string;
+        } | string;
+        bank?: string | { account?: string };
+        accountNumber?: string;
       };
+      bank?: { id?: string; name?: string | null };
     };
     rawResponse?: Record<string, any>;
   };

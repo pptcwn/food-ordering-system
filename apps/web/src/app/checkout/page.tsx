@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
@@ -27,6 +27,7 @@ import {
 
 export default function CheckoutPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const {
     customerName,
@@ -39,15 +40,55 @@ export default function CheckoutPage() {
 
   const [notes, setNotes] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const couponCode = searchParams.get('coupon')?.trim().toUpperCase() || '';
 
   const { data: cart, isLoading } = useQuery<any>({
     queryKey: ['cart'],
     queryFn: () => apiClient.get('/cart'),
   });
 
-  const subtotal = cart?.subtotal || 0;
-  const deliveryFee = 0; // Free promotion
-  const grandTotal = subtotal + deliveryFee;
+  const subtotal = Number(cart?.subtotal || 0);
+  const branchId = activeBranchId || cart?.branchId || cart?.items?.[0]?.branchId;
+  const hasDeliveryCoordinates = Boolean(
+    location && Number.isFinite(location.latitude) && Number.isFinite(location.longitude),
+  );
+  const {
+    data: deliveryQuote,
+    isLoading: isDeliveryFeeLoading,
+    error: deliveryFeeError,
+  } = useQuery<any>({
+    queryKey: ['delivery-fee', branchId, location?.latitude, location?.longitude],
+    queryFn: () =>
+      apiClient.post('/delivery/calculate-fee', {
+        branchId,
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+      }),
+    enabled: orderType === 'DELIVERY' && Boolean(branchId && hasDeliveryCoordinates),
+    retry: false,
+  });
+  const deliveryFee =
+    orderType === 'DELIVERY' && deliveryQuote?.isDeliverable
+      ? Number(deliveryQuote.fee)
+      : 0;
+  const { data: couponValidation, error: couponError } = useQuery<any>({
+    queryKey: ['coupon-validation', couponCode, subtotal, branchId, deliveryFee],
+    queryFn: () =>
+      apiClient.post('/coupons/validate', {
+        code: couponCode,
+        subtotal,
+        branchId,
+        deliveryFee,
+      }),
+    enabled: Boolean(
+      couponCode &&
+        cart?.items?.length &&
+        (orderType !== 'DELIVERY' || Boolean(deliveryQuote)),
+    ),
+    retry: false,
+  });
+  const discount = Number(couponValidation?.discount || 0);
+  const grandTotal = Math.max(0, subtotal + deliveryFee - discount);
 
   const createOrderMutation = useMutation({
     mutationFn: (payload: any) => apiClient.post('/orders', payload),
@@ -74,8 +115,28 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (orderType === 'DELIVERY') {
+      if (isDeliveryFeeLoading) {
+        setErrorMsg('กำลังคำนวณค่าจัดส่ง กรุณารอสักครู่');
+        return;
+      }
+      if (deliveryFeeError) {
+        setErrorMsg((deliveryFeeError as Error).message || 'ไม่สามารถคำนวณค่าจัดส่งได้');
+        return;
+      }
+      if (!deliveryQuote?.isDeliverable) {
+        setErrorMsg(deliveryQuote?.message || 'ที่อยู่นี้อยู่นอกพื้นที่จัดส่ง');
+        return;
+      }
+    }
+
+    if (couponCode && couponError) {
+      setErrorMsg((couponError as Error).message || 'คูปองนี้ไม่สามารถใช้งานได้แล้ว');
+      return;
+    }
+
     createOrderMutation.mutate({
-      branchId: activeBranchId || cart.items[0]?.branchId,
+      branchId,
       orderType,
       customerName,
       customerPhone,
@@ -83,6 +144,7 @@ export default function CheckoutPage() {
       deliveryLatitude: location?.latitude,
       deliveryLongitude: location?.longitude,
       note: notes.trim() || undefined,
+      couponCode: couponCode || undefined,
     });
   };
 
@@ -192,20 +254,44 @@ export default function CheckoutPage() {
 
       {/* 6. Place Order Bottom CTA Bar (Matching Reference Screen 6 "Place Order ➔") */}
       <div className="fixed bottom-0 inset-x-0 max-w-[480px] mx-auto bg-white/95 backdrop-blur-md border-t border-slate-100 p-4 shadow-xl z-40">
-        <div className="flex items-center justify-between mb-3 px-1">
-          <span className="text-xs text-slate-500 font-medium">ยอดชำระทั้งหมด</span>
-          <span className="text-lg font-black text-slate-900">{formatPrice(grandTotal)}</span>
+        <div className="mb-3 space-y-1.5 px-1 text-xs">
+          <div className="flex items-center justify-between text-slate-500 font-medium">
+            <span>ค่าอาหาร</span>
+            <span>{formatPrice(subtotal)}</span>
+          </div>
+          {orderType === 'DELIVERY' && (
+            <div className="flex items-center justify-between text-slate-500 font-medium">
+              <span>ค่าส่ง</span>
+              <span>
+                {isDeliveryFeeLoading
+                  ? 'กำลังคำนวณ...'
+                  : deliveryFeeError
+                    ? 'คำนวณไม่สำเร็จ'
+                    : deliveryQuote?.message || formatPrice(deliveryFee)}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center justify-between pt-1 text-slate-900">
+            <span className="font-bold">ยอดชำระทั้งหมด</span>
+            <span className="text-lg font-black">{formatPrice(grandTotal)}</span>
+          </div>
         </div>
+        {couponValidation && (
+          <div className="mb-3 flex items-center justify-between rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">
+            <span>{couponValidation.promotionName}</span>
+            <span>-{formatPrice(discount)}</span>
+          </div>
+        )}
         <Button
           onClick={handlePlaceOrder}
-          disabled={createOrderMutation.isPending}
+          disabled={createOrderMutation.isPending || (orderType === 'DELIVERY' && isDeliveryFeeLoading)}
           size="lg"
           className="w-full justify-between rounded-full px-6 shadow-lg shadow-emerald-950/20"
         >
-          {createOrderMutation.isPending ? (
+          {createOrderMutation.isPending || (orderType === 'DELIVERY' && isDeliveryFeeLoading) ? (
             <div className="flex items-center justify-center gap-2 w-full">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span>กำลังสร้างคำสั่งซื้อ...</span>
+              <span>{isDeliveryFeeLoading ? 'กำลังคำนวณค่าส่ง...' : 'กำลังสร้างคำสั่งซื้อ...'}</span>
             </div>
           ) : (
             <>

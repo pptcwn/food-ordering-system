@@ -176,7 +176,7 @@ export class CartService {
 
       const unitPrice = item.variant
         ? Number(item.variant.price)
-        : Number(item.product.basePrice);
+        : Number(item.product.salePrice ?? item.product.basePrice);
 
       const modifiersPrice = item.modifiers.reduce(
         (sum, m) => sum + Number(m.modifier.price),

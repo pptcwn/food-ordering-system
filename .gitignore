@@ -53,3 +53,7 @@ Thumbs.db
 # AI Harness & Backup Cache
 .vibecode-backup*/
 .gemini/
+.playwright-cli/
+.superpowers/
+output/
+.claude/hooks/.logs/

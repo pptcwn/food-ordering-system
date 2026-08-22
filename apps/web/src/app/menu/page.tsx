@@ -55,6 +55,21 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   default: Package,
 };
 
+function getSalePrice(product: any) {
+  const basePrice = Number(product.basePrice);
+  if (product.salePrice === null || product.salePrice === undefined || product.salePrice === '') {
+    return null;
+  }
+  const salePrice = Number(product.salePrice);
+  return Number.isFinite(salePrice) && salePrice >= 0 && salePrice < basePrice ? salePrice : null;
+}
+
+function getDiscountPercent(product: any) {
+  const salePrice = getSalePrice(product);
+  if (salePrice === null) return null;
+  return Math.round(((Number(product.basePrice) - salePrice) / Number(product.basePrice)) * 100);
+}
+
 export default function MenuPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -242,7 +257,7 @@ export default function MenuPage() {
 
   const calculateModalPrice = () => {
     if (!selectedProduct) return 0;
-    let base = Number(selectedProduct.basePrice);
+    let base = getSalePrice(selectedProduct) ?? Number(selectedProduct.basePrice);
     if (selectedVariantId) {
       const v = selectedProduct.variants.find((v: any) => v.id === selectedVariantId);
       if (v) base = Number(v.price);
@@ -472,9 +487,12 @@ export default function MenuPage() {
                   </div>
 
                   <div className="flex items-center justify-between mt-2 pt-1">
-                    <span className="font-extrabold text-xs text-slate-900">
-                      {formatPrice(product.basePrice)}
-                    </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-extrabold text-xs text-slate-900">
+                          {formatPrice(getSalePrice(product) ?? product.basePrice)}
+                        </span>
+                        {getSalePrice(product) !== null && <span className="text-[10px] text-slate-400 line-through">{formatPrice(product.basePrice)}</span>}
+                      </div>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -560,9 +578,10 @@ export default function MenuPage() {
                           </div>
 
                           <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-50">
-                            <span className="font-extrabold text-slate-900 text-sm">
-                              {formatPrice(product.basePrice)}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-extrabold text-slate-900 text-sm">{formatPrice(getSalePrice(product) ?? product.basePrice)}</span>
+                              {getSalePrice(product) !== null && <span className="text-[10px] text-slate-400 line-through">{formatPrice(product.basePrice)}</span>}
+                            </div>
 
                             {product.isAvailable ? (
                               <button
@@ -643,12 +662,11 @@ export default function MenuPage() {
 
                 {/* Price tag with 18% OFF badge */}
                 <div className="flex items-center gap-2.5 mt-2">
-                  <span className="text-2xl font-black text-slate-900">
-                    {formatPrice(selectedProduct.basePrice)}
-                  </span>
-                  <span className="text-xs font-bold bg-[#EAF8F1] text-[#00A86B] px-2 py-0.5 rounded-md">
-                    18% OFF
-                  </span>
+                  <span className="text-2xl font-black text-slate-900">{formatPrice(getSalePrice(selectedProduct) ?? selectedProduct.basePrice)}</span>
+                  {getSalePrice(selectedProduct) !== null && <>
+                    <span className="text-sm font-bold text-slate-400 line-through">{formatPrice(selectedProduct.basePrice)}</span>
+                    <span className="text-xs font-bold bg-[#EAF8F1] text-[#00A86B] px-2 py-0.5 rounded-md">{getDiscountPercent(selectedProduct)}% OFF</span>
+                  </>}
                 </div>
 
                 {selectedProduct.description && (

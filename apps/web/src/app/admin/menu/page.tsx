@@ -62,6 +62,7 @@ export default function AdminMenuManagerPage() {
     name: '',
     categoryId: '',
     basePrice: '',
+    salePrice: '',
     description: '',
     imageUrl: '',
     isAvailable: true,
@@ -221,6 +222,7 @@ export default function AdminMenuManagerPage() {
       name: '',
       categoryId: categories[0]?.id || '',
       basePrice: '',
+      salePrice: '',
       description: '',
       imageUrl: '',
       isAvailable: true,
@@ -241,6 +243,7 @@ export default function AdminMenuManagerPage() {
       name: product.name,
       categoryId: product.categoryId || catId,
       basePrice: product.basePrice.toString(),
+      salePrice: product.salePrice?.toString() || '',
       description: product.description || '',
       imageUrl: product.imageUrl || '',
       isAvailable: product.isAvailable,
@@ -341,10 +344,18 @@ export default function AdminMenuManagerPage() {
       return;
     }
 
+    const basePrice = parseFloat(formData.basePrice);
+    const salePrice = formData.salePrice === '' ? null : parseFloat(formData.salePrice);
+    if (salePrice !== null && salePrice >= basePrice) {
+      notify('ราคาส่วนลดต้องน้อยกว่าราคาปกติ', 'warning');
+      return;
+    }
+
     const payload = {
       name: formData.name.trim(),
       categoryId: formData.categoryId,
-      basePrice: parseFloat(formData.basePrice),
+      basePrice,
+      salePrice,
       description: formData.description.trim() || undefined,
       imageUrl: formData.imageUrl || undefined,
       isAvailable: formData.isAvailable,
@@ -783,6 +794,21 @@ export default function AdminMenuManagerPage() {
                     placeholder="65"
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:bg-white font-mono"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-800 mb-1">
+                    ราคาส่วนลด (฿)
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={formData.salePrice}
+                    onChange={(e) => setFormData({ ...formData, salePrice: e.target.value })}
+                    placeholder="เว้นว่างหากไม่มีส่วนลด"
+                    className="w-full px-3.5 py-2.5 bg-emerald-50/60 border border-emerald-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#06C755] focus:bg-white font-mono"
+                  />
+                  <p className="mt-1 text-[10px] text-slate-400">ต้องน้อยกว่าราคาปกติ ระบบจะแสดงราคาเดิมขีดทับที่หน้าร้าน</p>
                 </div>
               </div>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { apiClient } from '@/lib/api';
@@ -14,6 +15,11 @@ import {
   ArrowRight,
   AlertCircle,
 } from 'lucide-react';
+
+const LocationMapPicker = dynamic(() => import('@/components/location-map-picker'), {
+  ssr: false,
+  loading: () => <div className="h-[260px] animate-pulse rounded-2xl bg-slate-100" />,
+});
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -240,6 +246,15 @@ export default function OnboardingPage() {
                 onChange={(e) => setAddressLine(e.target.value)}
                 placeholder="กรอกบ้านเลขที่, คอนโด/ตึก, ซอย, ถนน หรือจุดสังเกต"
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#00A86B] focus:bg-white transition-all resize-none"
+              />
+
+              <LocationMapPicker
+                latitude={lat}
+                longitude={lng}
+                onChange={({ latitude, longitude }) => {
+                  setLat(latitude);
+                  setLng(longitude);
+                }}
               />
 
               <input

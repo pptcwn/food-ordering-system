@@ -133,6 +133,12 @@ export class ProductsService {
         description: dto.description,
         imageUrl: dto.imageUrl,
         basePrice: dto.basePrice,
+        salePrice:
+          dto.salePrice !== undefined &&
+          dto.salePrice !== null &&
+          dto.salePrice < dto.basePrice
+            ? dto.salePrice
+            : null,
         isAvailable: dto.isAvailable !== undefined ? dto.isAvailable : true,
         sortOrder: dto.sortOrder || 0,
         variants: dto.variants
@@ -176,6 +182,19 @@ export class ProductsService {
     // Convert undefined to null or omit for Prisma depending on schema, but omit is safer
     const dataToUpdate: any = { ...updateData };
     if (branchId !== undefined) dataToUpdate.branchId = branchId;
+    if (dto.salePrice !== undefined || dto.basePrice !== undefined) {
+      const nextBasePrice = dto.basePrice ?? Number(product.basePrice);
+      const nextSalePrice =
+        dto.salePrice === null
+          ? undefined
+          : dto.salePrice ??
+            (product.salePrice === null ? undefined : Number(product.salePrice));
+
+      dataToUpdate.salePrice =
+        nextSalePrice !== undefined && nextSalePrice < nextBasePrice
+          ? nextSalePrice
+          : null;
+    }
 
     return this.prisma.product.update({
       where: { id },

@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -21,10 +22,53 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { DeliveryStatus, UserRole } from '@food-ordering/types';
 import { Request } from 'express';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { effectiveBranchScope, requireBranchAccess } from '../common/authz/branch-access';
 
 class AssignDeliveryDto {
+  @IsString()
+  @IsNotEmpty()
   deliveryStaffId: string;
+}
+
+class CreateDeliveryStaffDto {
+  @IsString()
+  @IsNotEmpty()
+  branchId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  phone: string;
+
+  @IsOptional()
+  @IsString()
+  vehicleType?: string;
+
+  @IsOptional()
+  @IsString()
+  vehiclePlate?: string;
+}
+
+class UpdateDeliveryStaffDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  vehicleType?: string;
+
+  @IsOptional()
+  @IsString()
+  vehiclePlate?: string;
 }
 
 class FailDeliveryDto {
@@ -74,6 +118,29 @@ export class DeliveryAdminController {
   @ApiQuery({ name: 'branchId', required: false })
   async getDeliveryStaff(@Query('branchId') branchId?: string, @Req() req?: Request) {
     return this.deliveryService.getDeliveryStaff(effectiveBranchScope((req as any).user, branchId));
+  }
+
+  @Post('staff')
+  @ApiOperation({ summary: 'Create delivery staff for a branch' })
+  async createDeliveryStaff(@Body() dto: CreateDeliveryStaffDto, @Req() req?: Request) {
+    requireBranchAccess((req as any).user, dto.branchId);
+    return this.deliveryService.createDeliveryStaff(dto.branchId, dto);
+  }
+
+  @Patch('staff/:id')
+  @ApiOperation({ summary: 'Update delivery staff details' })
+  async updateDeliveryStaff(@Param('id') id: string, @Body() dto: UpdateDeliveryStaffDto, @Req() req?: Request) {
+    const staff = await this.deliveryService.getDeliveryStaffById(id);
+    requireBranchAccess((req as any).user, staff.branchId);
+    return this.deliveryService.updateDeliveryStaff(id, dto);
+  }
+
+  @Delete('staff/:id')
+  @ApiOperation({ summary: 'Deactivate delivery staff while retaining delivery history' })
+  async deactivateDeliveryStaff(@Param('id') id: string, @Req() req?: Request) {
+    const staff = await this.deliveryService.getDeliveryStaffById(id);
+    requireBranchAccess((req as any).user, staff.branchId);
+    return this.deliveryService.deactivateDeliveryStaff(id);
   }
 
   @Get(':id')

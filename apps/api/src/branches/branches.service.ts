@@ -32,6 +32,8 @@ export class BranchesService {
         address: true,
         latitude: true,
         longitude: true,
+        freeDeliveryDistanceKm: true,
+        deliveryFeePerKm: true,
         openingTime: true,
         closingTime: true,
         lastOrderTime: true,
@@ -40,6 +42,10 @@ export class BranchesService {
         storefrontHeadline: true,
         storefrontSubheadline: true,
         storefrontThemeColor: true,
+        paymentReceiverType: true,
+        paymentReceiverValue: true,
+        paymentReceiverName: true,
+        paymentReceiverBank: true,
         openingHours: true,
       },
       orderBy: { name: 'asc' },
@@ -57,6 +63,8 @@ export class BranchesService {
         address: true,
         latitude: true,
         longitude: true,
+        freeDeliveryDistanceKm: true,
+        deliveryFeePerKm: true,
         openingTime: true,
         closingTime: true,
         lastOrderTime: true,
@@ -65,6 +73,10 @@ export class BranchesService {
         storefrontHeadline: true,
         storefrontSubheadline: true,
         storefrontThemeColor: true,
+        paymentReceiverType: true,
+        paymentReceiverValue: true,
+        paymentReceiverName: true,
+        paymentReceiverBank: true,
         openingHours: true,
       },
     });
@@ -92,7 +104,7 @@ export class BranchesService {
 
     return this.prisma.branch.update({
       where: { id },
-      data: { name: dto.name },
+      data: dto,
     });
   }
 

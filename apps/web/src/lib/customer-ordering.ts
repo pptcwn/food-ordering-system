@@ -3,7 +3,14 @@ import type { CustomerLocation } from './store';
 export type CustomerOrderType = 'DELIVERY' | 'PICKUP';
 
 export function isFulfilmentReady(input: { orderType: CustomerOrderType; location: CustomerLocation | null }): boolean {
-  return input.orderType === 'PICKUP' || Boolean(input.location?.addressLine.trim() && input.location.latitude);
+  return (
+    input.orderType === 'PICKUP' ||
+    Boolean(
+      input.location?.addressLine.trim() &&
+        Number.isFinite(input.location.latitude) &&
+        Number.isFinite(input.location.longitude),
+    )
+  );
 }
 
 export function getCheckoutBlocker(input: {

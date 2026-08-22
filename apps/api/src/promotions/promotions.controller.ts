@@ -15,6 +15,7 @@ import {
   ValidateCouponDto,
   CreatePromotionDto,
   CreateCouponDto,
+  UpdateCouponDto,
 } from './promotions.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -60,6 +61,12 @@ export class AdminPromotionsController {
     return this.promotionsService.createCoupon(dto);
   }
 
+  @Patch('coupons/:id')
+  @ApiOperation({ summary: 'Admin: update coupon code, usage limit, or status' })
+  async updateCoupon(@Param('id') id: string, @Body() dto: UpdateCouponDto) {
+    return this.promotionsService.updateCoupon(id, dto);
+  }
+
   @Patch('coupons/:id/toggle')
   @ApiOperation({ summary: 'Admin: activate/deactivate coupon code' })
   async toggleCoupon(
@@ -73,5 +80,11 @@ export class AdminPromotionsController {
   @ApiOperation({ summary: 'Admin: delete coupon' })
   async deleteCoupon(@Param('id') id: string) {
     return this.promotionsService.deleteCoupon(id);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Admin: delete a promotion and its coupons' })
+  async deletePromotion(@Param('id') id: string) {
+    return this.promotionsService.deletePromotion(id);
   }
 }

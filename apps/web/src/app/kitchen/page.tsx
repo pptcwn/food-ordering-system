@@ -229,8 +229,15 @@ export default function KitchenDashboardPage() {
                         </span>
                         <div>
                           <h4 className="text-sm font-bold text-white">
-                            {item.menuItem?.name || item.name}
+                            {item.productName || item.menuItem?.name || item.name || 'รายการอาหาร'}
                           </h4>
+                          {(item.variantName || item.modifiers?.length > 0) && (
+                            <p className="mt-0.5 text-xs text-slate-400">
+                              {[item.variantName, ...(item.modifiers || []).map((modifier: any) => modifier.modifierName)]
+                                .filter(Boolean)
+                                .join(', ')}
+                            </p>
+                          )}
                           {item.specialNote && (
                             <p className="text-xs text-amber-300 font-bold bg-amber-500/20 px-2 py-0.5 rounded mt-1">
                               ⚠️ โน้ต: {item.specialNote}

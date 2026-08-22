@@ -218,10 +218,10 @@ export default function CustomerOrdersHistoryPage() {
                   {order.items?.slice(0, 2).map((item: any, idx: number) => (
                     <div key={idx} className="flex justify-between">
                       <span className="truncate max-w-[200px]">
-                        {item.quantity}x {item.menuItem?.name || item.name || 'อาหาร'}
+                        {item.quantity}x {item.productName || item.menuItem?.name || item.name || 'อาหาร'}
                       </span>
                       <span className="font-mono text-slate-500">
-                        {formatPrice(Number(item.price || 0) * Number(item.quantity || 1))}
+                        {formatPrice(Number(item.subtotal ?? Number(item.unitPrice || 0) * Number(item.quantity || 1)))}
                       </span>
                     </div>
                   ))}
@@ -237,7 +237,7 @@ export default function CustomerOrdersHistoryPage() {
                   <div>
                     <span className="text-[11px] text-slate-400 block">ยอดรวม</span>
                     <span className="text-sm font-extrabold text-slate-900">
-                      {formatPrice(order.totalAmount || 0)}
+                      {formatPrice(order.total ?? order.totalAmount ?? 0)}
                     </span>
                   </div>
 

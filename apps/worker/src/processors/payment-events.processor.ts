@@ -81,11 +81,20 @@ export class PaymentEventsProcessor extends WorkerHost {
     }
 
     // 3. Call Slip2Go OCR Verification API
-    const slipResult = await this.slip2goService.verifySlip(imageBuffer, objectKey.split('/').pop());
+    const slipResult = await this.slip2goService.verifySlip(
+      imageBuffer,
+      objectKey.split('/').pop(),
+      {
+        orderTotal: Number(order.total),
+        orderCreatedAt: order.createdAt,
+        receiverValue: order.branch.paymentReceiverValue,
+        receiverType: order.branch.paymentReceiverType,
+      },
+    );
 
     if (!slipResult.success || !slipResult.data) {
       this.logger.warn(`Slip2Go rejected slip for order ${order.orderNo}: ${slipResult.message}`);
-      await this.markPaymentFailed(order, 'Slip2Go verification failed or invalid QR');
+      await this.markPaymentFailed(order, this.getVerificationFailureReason(slipResult.message));
       return { success: false, reason: slipResult.message };
     }
 
@@ -99,7 +108,11 @@ export class PaymentEventsProcessor extends WorkerHost {
 
     if (!validation.isValid || !validation.transactionRef) {
       this.logger.warn(`Business validation failed for order ${order.orderNo}: ${validation.errorMessage}`);
-      await this.markPaymentFailed(order, validation.errorMessage || 'Invalid business rules');
+      await this.markPaymentFailed(
+        order,
+        validation.errorMessage || 'Invalid business rules',
+        slipResult.data.rawResponse,
+      );
       return { success: false, reason: validation.errorMessage };
     }
 
@@ -187,11 +200,14 @@ export class PaymentEventsProcessor extends WorkerHost {
     }
   }
 
-  private async markPaymentFailed(order: any, reason: string) {
+  private async markPaymentFailed(order: any, reason: string, rawResponse?: unknown) {
     await this.prisma.$transaction(async (tx) => {
       await tx.payment.update({
         where: { id: order.payment.id },
-        data: { status: PaymentStatus.FAILED },
+        data: {
+          status: PaymentStatus.FAILED,
+          ...(rawResponse ? { rawResponse: rawResponse as object } : {}),
+        },
       });
 
       await tx.order.update({
@@ -221,5 +237,13 @@ export class PaymentEventsProcessor extends WorkerHost {
       branchTelegramChatId: order.branch.telegramChatId,
       reason,
     });
+  }
+
+  private getVerificationFailureReason(message?: string) {
+    if (/package expired/i.test(message || '')) {
+      return 'ระบบตรวจสลิปของร้านไม่พร้อมใช้งาน เนื่องจากแพ็กเกจ Slip2Go หมดอายุ กรุณาติดต่อร้าน';
+    }
+
+    return message?.trim() || 'ตรวจสอบสลิปไม่สำเร็จ กรุณาส่งสลิปใหม่อีกครั้ง';
   }
 }

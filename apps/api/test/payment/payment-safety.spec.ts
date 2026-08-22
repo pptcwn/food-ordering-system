@@ -1,5 +1,6 @@
 import { Slip2GoService } from '../../../worker/src/services/slip2go.service';
 import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
 
 describe('Payment Safety Integration', () => {
   let slip2GoService: Slip2GoService;
@@ -63,6 +64,55 @@ describe('Payment Safety Integration', () => {
       const result = slip2GoService.validateBusinessRules(slipData as any, mockOrderTotal, mockOrderCreatedAt, '0812345678');
       expect(result.isValid).toBe(false);
       expect(result.errorCode).toBe('EXPIRED_TRANSFER_TIME');
+    });
+  });
+
+  describe('Slip2Go REST API response', () => {
+    const orderTotal = 150.5;
+    const orderCreatedAt = new Date('2026-08-20T10:00:00Z');
+    const slipDate = new Date('2026-08-20T10:05:00Z').toISOString();
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('normalizes the current QR-image API response before validating it', async () => {
+      jest.spyOn(axios, 'post').mockResolvedValue({
+        data: {
+          code: '200000',
+          message: 'Slip found.',
+          data: {
+            transRef: 'NEW-REF-123',
+            dateTime: slipDate,
+            amount: orderTotal,
+            receiver: {
+              account: {
+                name: 'ร้านทดสอบ',
+                proxy: { account: '081-234-5678' },
+              },
+              bank: { name: 'KBANK' },
+            },
+            sender: {
+              account: { name: 'Jane' },
+              bank: { name: 'SCB' },
+            },
+          },
+        },
+      } as any);
+
+      const result = await slip2GoService.verifySlip(Buffer.from('test'), 'slip.jpg', {
+        orderTotal,
+        orderCreatedAt,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.data?.transRef).toBe('NEW-REF-123');
+      expect(result.data?.receiver.account.promptpayNumber).toBe('081-234-5678');
+      expect(axios.post).toHaveBeenCalledWith(
+        expect.stringContaining('/api/verify-slip/qr-image/info'),
+        expect.anything(),
+        expect.objectContaining({ timeout: 15000 }),
+      );
     });
   });
 });

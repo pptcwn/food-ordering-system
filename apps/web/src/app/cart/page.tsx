@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { useAppStore } from '@/lib/store';
 import { formatPrice } from '@/lib/utils';
 import { ProductThumbnail } from '@/components/customer/product-thumbnail';
+import { useFeedback } from '@/components/ui/feedback-provider';
 import {
   ArrowLeft,
   Trash2,
@@ -22,9 +23,10 @@ import {
 export default function CartPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { notify } = useFeedback();
   const { orderType } = useAppStore();
   const [promoCode, setPromoCode] = useState('');
-  const [appliedPromo, setAppliedPromo] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
 
   const { data: cart, isLoading } = useQuery<any>({
     queryKey: ['cart'],
@@ -49,8 +51,30 @@ export default function CartPage() {
 
   const subtotal = cart?.subtotal || 0;
   const deliveryFee = orderType === 'DELIVERY' ? 0 : 0; // Free delivery promotion
-  const discount = appliedPromo ? 30 : 0;
+  const discount = Number(appliedCoupon?.discount || 0);
   const grandTotal = Math.max(0, subtotal + deliveryFee - discount);
+
+  useEffect(() => {
+    setAppliedCoupon(null);
+  }, [subtotal, cart?.branchId]);
+
+  const validateCouponMutation = useMutation({
+    mutationFn: () =>
+      apiClient.post('/coupons/validate', {
+        code: promoCode.trim(),
+        subtotal,
+        branchId: cart?.branchId,
+      }),
+    onSuccess: (coupon: any) => {
+      setAppliedCoupon(coupon);
+      setPromoCode(coupon.code);
+      notify(coupon.message, 'success');
+    },
+    onError: (error: any) => {
+      setAppliedCoupon(null);
+      notify(error.message || 'ไม่สามารถใช้คูปองนี้ได้', 'error');
+    },
+  });
 
   if (isLoading) {
     return (
@@ -192,16 +216,20 @@ export default function CartPage() {
               <input
                 type="text"
                 value={promoCode}
-                onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  setPromoCode(e.target.value.toUpperCase());
+                  setAppliedCoupon(null);
+                }}
                 placeholder="มีโค้ดส่วนลดหรือไม่"
                 className="w-full text-xs bg-transparent focus:outline-none placeholder-slate-400 font-medium"
               />
             </div>
             <button
-              onClick={() => setAppliedPromo(true)}
-              className="text-xs font-black text-[#00A86B] hover:underline px-2 py-1 flex-shrink-0"
+              onClick={() => validateCouponMutation.mutate()}
+              disabled={!promoCode.trim() || validateCouponMutation.isPending}
+              className="text-xs font-black text-[#00A86B] hover:underline px-2 py-1 flex-shrink-0 disabled:opacity-50"
             >
-              {appliedPromo ? '✓ ใช้แล้ว' : 'ใช้โค้ด'}
+              {validateCouponMutation.isPending ? 'กำลังตรวจ...' : appliedCoupon ? '✓ ใช้แล้ว' : 'ใช้โค้ด'}
             </button>
           </div>
 
@@ -215,9 +243,9 @@ export default function CartPage() {
               <span>ค่าจัดส่ง</span>
               <span className="font-bold text-[#00A86B]">ฟรีโปรโมชั่น</span>
             </div>
-            {appliedPromo && (
+            {appliedCoupon && (
               <div className="flex justify-between text-rose-500 font-bold">
-                <span>ส่วนลดโค้ดพิเศษ</span>
+                <span>{appliedCoupon.promotionName || 'ส่วนลดคูปอง'}</span>
                 <span>-{formatPrice(discount)}</span>
               </div>
             )}
@@ -234,7 +262,7 @@ export default function CartPage() {
       {/* Floating Bottom CTA (Matching Screen 5 "Proceed to Checkout ➔") */}
       <div className="fixed bottom-0 inset-x-0 z-40 mx-auto w-full max-w-3xl border-t border-slate-100 bg-white/95 p-4 backdrop-blur-md">
         <button
-          onClick={() => router.push('/checkout')}
+          onClick={() => router.push(appliedCoupon ? `/checkout?coupon=${encodeURIComponent(appliedCoupon.code)}` : '/checkout')}
           disabled={cart.hasUnavailableItems}
           className="w-full py-4 bg-[#00A86B] hover:bg-[#00925D] text-white font-extrabold text-sm rounded-full shadow-lg shadow-[#00A86B]/30 flex items-center justify-between px-6 transition-all btn-tactile disabled:opacity-50"
         >

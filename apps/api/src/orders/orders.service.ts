@@ -19,6 +19,7 @@ import { APP_CONFIG } from '@food-ordering/config';
 
 import { CheckoutOrderDto, UpdateOrderStatusDto } from '@food-ordering/validation';
 import { OrderLifecycleService } from './order-lifecycle.service';
+import { DeliveryService } from '../delivery/delivery.service';
 
 @Injectable()
 export class OrdersService {
@@ -28,27 +29,11 @@ export class OrdersService {
     private prisma: PrismaService,
     private eventsGateway: EventsGateway,
     private orderLifecycleService: OrderLifecycleService,
+    private deliveryService: DeliveryService,
     @InjectQueue(QUEUE_NAMES.ORDER_EVENTS) private orderEventsQueue: Queue,
     @InjectQueue(QUEUE_NAMES.ORDER_EXPIRATION) private orderExpirationQueue: Queue,
     @InjectQueue(QUEUE_NAMES.NOTIFICATIONS) private notificationsQueue: Queue,
   ) {}
-
-  /**
-   * Calculate distance in kilometers using Haversine formula
-   */
-  private calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * (Math.PI / 180)) *
-        Math.cos(lat2 * (Math.PI / 180)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return Math.round(R * c * 10) / 10;
-  }
 
   /**
    * Create new Order from customer Cart with full business validation and DB transaction
@@ -127,7 +112,7 @@ export class OrdersService {
     for (const item of cart.items) {
       const unitPrice = item.variant
         ? Number(item.variant.price)
-        : Number(item.product.basePrice);
+        : Number(item.product.salePrice ?? item.product.basePrice);
 
       let modifiersTotal = 0;
       const modifierRecords: any[] = [];
@@ -163,27 +148,19 @@ export class OrdersService {
     // 6. Calculate Distance-Based Delivery Fee
     let deliveryFee = 0;
     if (dto.orderType === OrderType.DELIVERY) {
-      if (dto.deliveryLatitude && dto.deliveryLongitude) {
-        const branchLat = branch.latitude ? Number(branch.latitude) : 13.7563;
-        const branchLon = branch.longitude ? Number(branch.longitude) : 100.5018;
-        const distanceKm = this.calculateDistanceKm(
-          branchLat,
-          branchLon,
-          dto.deliveryLatitude,
-          dto.deliveryLongitude,
-        );
-
-        const baseFee = 20;
-        const ratePerKm = 8;
-        const baseDistance = 3;
-
-        deliveryFee = baseFee;
-        if (distanceKm > baseDistance) {
-          deliveryFee += Math.ceil(distanceKm - baseDistance) * ratePerKm;
-        }
-      } else {
-        deliveryFee = 30; // Standard flat delivery fee fallback
+      if (!Number.isFinite(dto.deliveryLatitude) || !Number.isFinite(dto.deliveryLongitude)) {
+        throw new BadRequestException('Delivery coordinates are required for Delivery orders');
       }
+
+      const quote = await this.deliveryService.calculateDeliveryFee({
+        branchId: dto.branchId,
+        latitude: dto.deliveryLatitude,
+        longitude: dto.deliveryLongitude,
+      });
+      if (!quote.isDeliverable || quote.fee === null) {
+        throw new BadRequestException(quote.message);
+      }
+      deliveryFee = quote.fee;
     }
 
     // 7. Validate and Apply Coupon (if provided)
@@ -222,7 +199,7 @@ export class OrdersService {
 
     // 6. Generate Unique Order Number: XC{YYMMDD}-{4 digit sequence}
     const orderNo = await this.generateOrderNumber();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiry
+    const expiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 minute payment window
 
     // 7. Atomic DB Transaction: Create Order, Items, Payment, Log & Clear Cart
     const order = await this.prisma.$transaction(async (tx) => {
@@ -320,12 +297,12 @@ export class OrdersService {
         })),
       });
 
-      // Auto-Expiration Job (15 minutes)
-      await this.orderExpirationQueue.add(
-        'CHECK_ORDER_EXPIRATION',
-        { orderId: order.id },
-        { delay: 15 * 60 * 1000 },
-      );
+        // Auto-cancel unpaid orders after the two-minute payment window.
+        await this.orderExpirationQueue.add(
+          'CHECK_ORDER_EXPIRATION',
+          { orderId: order.id },
+          { delay: 2 * 60 * 1000 },
+        );
     } catch (err) {
       this.logger.warn(`Could not enqueue order background jobs: ${err}`);
     }

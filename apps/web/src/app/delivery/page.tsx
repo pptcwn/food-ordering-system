@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
@@ -31,6 +31,7 @@ export default function DeliveryDashboardPage() {
   const [proofImage, setProofImage] = useState<File | null>(null);
   const [proofPreview, setProofPreview] = useState<string | null>(null);
   const [deliveryNote, setDeliveryNote] = useState('');
+  const [staffByOrder, setStaffByOrder] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: branches = [] } = useQuery<any[]>({
@@ -38,21 +39,29 @@ export default function DeliveryDashboardPage() {
     queryFn: () => apiClient.get('/branches'),
   });
 
+  useEffect(() => {
+    if (!selectedBranchId && branches.length > 0) setSelectedBranchId(branches[0].id);
+  }, [branches, selectedBranchId]);
+
   const { data: orders = [], isLoading } = useQuery<any[]>({
     queryKey: ['delivery-orders', selectedBranchId],
     queryFn: () => apiClient.get(`/orders/admin/all?branchId=${selectedBranchId}`),
     refetchInterval: 4000,
   });
 
-  // Start Delivery mutation
-  const startDeliveryMutation = useMutation({
-    mutationFn: (orderId: string) =>
-      apiClient.patch(`/orders/admin/${orderId}/status`, {
-        status: OrderStatus.OUT_FOR_DELIVERY,
-        changedBy: 'RIDER_STAFF',
-      }),
+  const { data: deliveryStaff = [] } = useQuery<any[]>({
+    queryKey: ['delivery-staff', selectedBranchId],
+    queryFn: () => apiClient.get(`/admin/deliveries/staff/list?branchId=${selectedBranchId}`),
+    enabled: Boolean(selectedBranchId),
+  });
+
+  // Assignment creates a delivery record, preserving the driver shown to the customer.
+  const assignDeliveryMutation = useMutation({
+    mutationFn: ({ orderId, staffId }: { orderId: string; staffId: string }) =>
+      apiClient.post(`/admin/deliveries/${orderId}/assign`, { deliveryStaffId: staffId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['delivery-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['kitchen-orders'] });
     },
   });
 
@@ -153,6 +162,8 @@ export default function DeliveryDashboardPage() {
         ) : (
           deliveryOrders.map((order: any) => {
             const isOut = order.orderStatus === 'OUT_FOR_DELIVERY';
+            const needsAssignment = !order.delivery;
+            const selectedStaffId = staffByOrder[order.id] || deliveryStaff[0]?.id || '';
 
             return (
               <div
@@ -204,11 +215,18 @@ export default function DeliveryDashboardPage() {
                   {order.items?.map((i: any, idx: number) => (
                     <div key={idx} className="flex justify-between">
                       <span className="truncate max-w-[220px]">
-                        {i.quantity}x {i.menuItem?.name || i.name}
+                        {i.quantity}x {i.productName || i.menuItem?.name || i.name || 'รายการอาหาร'}
                       </span>
-                      <span className="font-semibold text-slate-900">{formatPrice(i.totalPrice || 0)}</span>
+                      <span className="font-semibold text-slate-900">
+                        {formatPrice(Number(i.subtotal ?? Number(i.unitPrice || 0) * Number(i.quantity || 1)))}
+                      </span>
                     </div>
                   ))}
+                </div>
+
+                <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-xs">
+                  <span className="text-slate-500">ค่าส่งที่เรียกเก็บ</span>
+                  <span className="font-bold text-[#06C755]">{formatPrice(Number(order.deliveryFee || 0))}</span>
                 </div>
 
                 {/* Rider Action Buttons */}
@@ -235,15 +253,27 @@ export default function DeliveryDashboardPage() {
                 </div>
 
                 {/* Delivery Progress CTA */}
-                {!isOut ? (
-                  <button
-                    onClick={() => startDeliveryMutation.mutate(order.id)}
-                    disabled={startDeliveryMutation.isPending}
-                    className="w-full py-3 bg-[#06C755] hover:bg-[#05A848] text-white font-bold text-xs rounded-xl shadow-md transition-colors btn-tactile flex items-center justify-center gap-1.5"
-                  >
-                    <Bike className="w-4 h-4" />
-                    <span>รับอาหารแล้ว (เริ่มออกเดินทาง)</span>
-                  </button>
+                {needsAssignment ? (
+                  <div className="space-y-2">
+                    <label className="block text-[11px] font-bold text-slate-600">มอบหมายคนขับ</label>
+                    <select
+                      value={selectedStaffId}
+                      onChange={(event) => setStaffByOrder((current) => ({ ...current, [order.id]: event.target.value }))}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#06C755]"
+                    >
+                      <option value="">เลือกคนขับ</option>
+                      {deliveryStaff.map((staff: any) => <option key={staff.id} value={staff.id}>{staff.name} · {staff.phone}</option>)}
+                    </select>
+                    {deliveryStaff.length === 0 && <p className="text-[11px] text-amber-700">เพิ่มคนขับได้ที่ การตั้งค่าร้าน ก่อนเริ่มส่ง</p>}
+                    <button
+                      onClick={() => assignDeliveryMutation.mutate({ orderId: order.id, staffId: selectedStaffId })}
+                      disabled={!selectedStaffId || assignDeliveryMutation.isPending}
+                      className="w-full py-3 bg-[#06C755] hover:bg-[#05A848] text-white font-bold text-xs rounded-xl shadow-md transition-colors btn-tactile flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Bike className="w-4 h-4" />
+                      <span>มอบหมายและเริ่มจัดส่ง</span>
+                    </button>
+                  </div>
                 ) : (
                   <button
                     onClick={() => setConfirmingOrder(order)}

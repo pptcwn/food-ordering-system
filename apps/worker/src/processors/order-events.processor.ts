@@ -18,18 +18,20 @@ export class OrderEventsProcessor extends WorkerHost {
 
       if (!order) return;
 
-      // Only expire if still in PENDING_PAYMENT state and not paid
-      if (
-        order.orderStatus === OrderStatus.PENDING_PAYMENT &&
-        order.paymentStatus === PaymentStatus.PENDING
-      ) {
+      // Cancel only after payment is definitively absent or failed. Keep a
+      // payment being verified intact so a slow provider response is not lost.
+      const shouldCancel =
+        (order.orderStatus === OrderStatus.PENDING_PAYMENT && order.paymentStatus === PaymentStatus.PENDING) ||
+        (order.orderStatus === OrderStatus.PAYMENT_FAILED && order.paymentStatus === PaymentStatus.FAILED);
+
+      if (shouldCancel) {
         const now = new Date();
         if (now >= order.expiresAt) {
           await this.prisma.$transaction(async (tx) => {
             await tx.order.update({
               where: { id: orderId },
               data: {
-                orderStatus: OrderStatus.EXPIRED,
+                orderStatus: OrderStatus.CANCELLED,
                 paymentStatus: PaymentStatus.FAILED,
               },
             });
@@ -37,15 +39,15 @@ export class OrderEventsProcessor extends WorkerHost {
             await tx.orderStatusLog.create({
               data: {
                 orderId,
-                fromStatus: OrderStatus.PENDING_PAYMENT,
-                toStatus: OrderStatus.EXPIRED,
+                fromStatus: order.orderStatus,
+                toStatus: OrderStatus.CANCELLED,
                 changedBy: 'EXPIRATION_WORKER',
-                reason: 'Order payment window expired (15 minutes limit)',
+                reason: 'ยกเลิกอัตโนมัติ: ไม่ชำระเงินสำเร็จภายใน 2 นาที',
               },
             });
           });
 
-          this.logger.log(`⏳ Order expired due to non-payment: ${order.orderNo}`);
+          this.logger.log(`⏳ Order cancelled due to non-payment: ${order.orderNo}`);
         }
       }
     }

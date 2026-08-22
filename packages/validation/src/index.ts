@@ -86,6 +86,14 @@ export type UpdateBranchStorefrontDtoType = z.infer<typeof UpdateBranchStorefron
 
 export const UpdateBranchSettingsSchema = z.object({
   name: z.string().trim().min(1, 'Store name is required').max(120),
+  paymentReceiverType: z.enum(['PROMPTPAY', 'BANK_ACCOUNT']).nullable().optional(),
+  paymentReceiverValue: z.string().trim().min(1).max(50).nullable().optional(),
+  paymentReceiverName: z.string().trim().max(120).nullable().optional(),
+  paymentReceiverBank: z.string().trim().max(80).nullable().optional(),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
+  freeDeliveryDistanceKm: z.number().min(0).max(100).optional(),
+  deliveryFeePerKm: z.number().min(0).max(1000).optional(),
 });
 export type UpdateBranchSettingsDtoType = z.infer<typeof UpdateBranchSettingsSchema>;
 
@@ -97,6 +105,7 @@ export const CreateProductSchema = z.object({
   description: z.string().optional(),
   imageUrl: z.string().url('Invalid Image URL').optional().or(z.literal('')),
   basePrice: z.number().min(0, 'Price must be >= 0'),
+  salePrice: z.number().min(0, 'Sale price must be >= 0').nullable().optional(),
   isAvailable: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
   variants: z.array(z.object({

@@ -20,6 +20,13 @@ export interface CalculateFeeDto {
   longitude: number;
 }
 
+export interface DeliveryStaffInput {
+  name: string;
+  phone: string;
+  vehicleType?: string;
+  vehiclePlate?: string;
+}
+
 @Injectable()
 export class DeliveryService {
   private readonly logger = new Logger(DeliveryService.name);
@@ -58,16 +65,26 @@ export class DeliveryService {
   async calculateDeliveryFee(dto: CalculateFeeDto) {
     const branch = await this.prisma.branch.findUnique({
       where: { id: dto.branchId },
-      select: { id: true, name: true, latitude: true, longitude: true },
+      select: {
+        id: true,
+        name: true,
+        latitude: true,
+        longitude: true,
+        freeDeliveryDistanceKm: true,
+        deliveryFeePerKm: true,
+      },
     });
 
     if (!branch) {
       throw new NotFoundException('Branch not found');
     }
 
-    // Fallback coordinates if branch coordinates not set (Bangkok center fallback)
-    const branchLat = branch.latitude ? Number(branch.latitude) : 13.7563;
-    const branchLon = branch.longitude ? Number(branch.longitude) : 100.5018;
+    if (branch.latitude === null || branch.longitude === null) {
+      throw new BadRequestException('ร้านยังไม่ได้ตั้งค่าพิกัดสำหรับคำนวณค่าจัดส่ง');
+    }
+
+    const branchLat = Number(branch.latitude);
+    const branchLon = Number(branch.longitude);
 
     const distanceKm = this.calculateDistanceKm(
       branchLat,
@@ -76,18 +93,9 @@ export class DeliveryService {
       dto.longitude,
     );
 
-    // Delivery Fee Tier:
-    // 0 - 3 km: Base fee ฿20
-    // > 3 km: ฿20 + ฿8/km
-    const baseFee = 20;
-    const ratePerKm = 8;
-    const baseDistance = 3;
-
-    let fee = baseFee;
-    if (distanceKm > baseDistance) {
-      const extraKm = Math.ceil(distanceKm - baseDistance);
-      fee += extraKm * ratePerKm;
-    }
+    const freeDistanceKm = Number(branch.freeDeliveryDistanceKm);
+    const feePerKm = Number(branch.deliveryFeePerKm);
+    const fee = Math.ceil(Math.max(0, distanceKm - freeDistanceKm)) * feePerKm;
 
     const maxDeliveryRadiusKm = 20;
     const isDeliverable = distanceKm <= maxDeliveryRadiusKm;
@@ -99,7 +107,9 @@ export class DeliveryService {
       fee: isDeliverable ? fee : null,
       isDeliverable,
       message: isDeliverable
-        ? `ระยะทาง ${distanceKm} กม. — ค่าจัดส่ง ฿${fee}`
+        ? fee === 0
+          ? `ระยะทาง ${distanceKm} กม. — ส่งฟรี`
+          : `ระยะทาง ${distanceKm} กม. — ค่าจัดส่ง ฿${fee}`
         : `อยู่นอกพื้นที่จัดส่ง (เกิน ${maxDeliveryRadiusKm} กม.)`,
     };
   }
@@ -115,6 +125,41 @@ export class DeliveryService {
         ...(branchId ? { branchId } : {}),
       },
       orderBy: { name: 'asc' },
+    });
+  }
+
+  async createDeliveryStaff(branchId: string, input: DeliveryStaffInput) {
+    if (!input.name?.trim() || !input.phone?.trim()) {
+      throw new BadRequestException('กรุณาระบุชื่อและเบอร์โทรคนขับ');
+    }
+
+    return this.prisma.deliveryStaff.create({
+      data: {
+        branchId,
+        name: input.name.trim(),
+        phone: input.phone.trim(),
+        vehicleType: input.vehicleType?.trim() || null,
+        vehiclePlate: input.vehiclePlate?.trim() || null,
+      },
+    });
+  }
+
+  async updateDeliveryStaff(id: string, input: Partial<DeliveryStaffInput>) {
+    return this.prisma.deliveryStaff.update({
+      where: { id },
+      data: {
+        ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+        ...(input.phone !== undefined ? { phone: input.phone.trim() } : {}),
+        ...(input.vehicleType !== undefined ? { vehicleType: input.vehicleType.trim() || null } : {}),
+        ...(input.vehiclePlate !== undefined ? { vehiclePlate: input.vehiclePlate.trim() || null } : {}),
+      },
+    });
+  }
+
+  async deactivateDeliveryStaff(id: string) {
+    return this.prisma.deliveryStaff.update({
+      where: { id },
+      data: { isActive: false, status: 'OFFLINE' },
     });
   }
 
@@ -195,8 +240,8 @@ export class DeliveryService {
     });
 
     if (!order) throw new NotFoundException('Order not found');
-    if (order.orderStatus !== OrderStatus.READY) {
-      throw new BadRequestException('Order must be READY before assigning delivery');
+    if (![OrderStatus.READY, OrderStatus.OUT_FOR_DELIVERY].includes(order.orderStatus as OrderStatus)) {
+      throw new BadRequestException('Order must be READY or OUT_FOR_DELIVERY before assigning delivery');
     }
     if (order.delivery) {
       throw new ConflictException('A delivery is already assigned to this order');
@@ -210,24 +255,29 @@ export class DeliveryService {
         data: {
           orderId: order.id,
           deliveryStaffId,
-          status: DeliveryStatus.ASSIGNED,
+          status: order.orderStatus === OrderStatus.OUT_FOR_DELIVERY
+            ? DeliveryStatus.OUT_FOR_DELIVERY
+            : DeliveryStatus.ASSIGNED,
           assignedAt: new Date(),
+          ...(order.orderStatus === OrderStatus.OUT_FOR_DELIVERY ? { outForDeliveryAt: new Date() } : {}),
         },
         include: { deliveryStaff: true },
       });
 
-      await tx.order.update({
-        where: { id: order.id },
-        data: { orderStatus: OrderStatus.OUT_FOR_DELIVERY },
-      });
+      if (order.orderStatus === OrderStatus.READY) {
+        await tx.order.update({
+          where: { id: order.id },
+          data: { orderStatus: OrderStatus.OUT_FOR_DELIVERY, outForDeliveryAt: new Date() },
+        });
+      }
 
       await tx.orderStatusLog.create({
         data: {
           orderId: order.id,
-          fromStatus: OrderStatus.READY,
+          fromStatus: order.orderStatus,
           toStatus: OrderStatus.OUT_FOR_DELIVERY,
           changedBy: 'SYSTEM',
-          reason: `Assigned to ${staff.name}`,
+          reason: `Assigned to ${staff.name}${order.orderStatus === OrderStatus.OUT_FOR_DELIVERY ? ' after delivery had started' : ''}`,
         },
       });
 

@@ -12,6 +12,7 @@ export interface ValidateCouponDto {
   code: string;
   subtotal: number;
   branchId?: string;
+  deliveryFee?: number;
 }
 
 export interface CreatePromotionDto {
@@ -30,6 +31,12 @@ export interface CreateCouponDto {
   promotionId: string;
   code: string;
   maxUsage?: number;
+}
+
+export interface UpdateCouponDto {
+  code?: string;
+  maxUsage?: number;
+  isActive?: boolean;
 }
 
 @Injectable()
@@ -96,7 +103,7 @@ export class PromotionsService {
     } else if (promo.type === 'FIXED_DISCOUNT') {
       discount = Math.min(discountVal, dto.subtotal);
     } else if (promo.type === 'FREE_DELIVERY') {
-      discount = 0; // Handled separately on delivery fee
+      discount = Math.max(0, Number(dto.deliveryFee || 0));
     }
 
     return {
@@ -181,10 +188,48 @@ export class PromotionsService {
     });
   }
 
+  async updateCoupon(id: string, dto: UpdateCouponDto) {
+    const coupon = await this.prisma.coupon.findUnique({ where: { id } });
+    if (!coupon) throw new NotFoundException('Coupon not found');
+
+    const code = dto.code?.trim().toUpperCase();
+    if (code && code !== coupon.code) {
+      const existing = await this.prisma.coupon.findUnique({ where: { code } });
+      if (existing) {
+        throw new ConflictException(`รหัสคูปอง "${code}" มีอยู่ในระบบแล้ว`);
+      }
+    }
+
+    if (dto.maxUsage !== undefined && dto.maxUsage < coupon.usedCount) {
+      throw new BadRequestException('จำนวนสิทธิ์ต้องไม่น้อยกว่าจำนวนที่ใช้ไปแล้ว');
+    }
+
+    return this.prisma.coupon.update({
+      where: { id },
+      data: {
+        ...(code ? { code } : {}),
+        ...(dto.maxUsage !== undefined ? { maxUsage: dto.maxUsage } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+      },
+    });
+  }
+
   async deleteCoupon(id: string) {
     const coupon = await this.prisma.coupon.findUnique({ where: { id } });
     if (!coupon) throw new NotFoundException('Coupon not found');
 
     return this.prisma.coupon.delete({ where: { id } });
+  }
+
+  async deletePromotion(id: string) {
+    const promotion = await this.prisma.promotion.findUnique({
+      where: { id },
+      include: { _count: { select: { coupons: true } } },
+    });
+    if (!promotion) throw new NotFoundException('Promotion not found');
+
+    // Coupon records cascade with their parent promotion by schema design.
+    await this.prisma.promotion.delete({ where: { id } });
+    return { id, deletedCoupons: promotion._count.coupons };
   }
 }

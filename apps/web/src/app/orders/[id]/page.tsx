@@ -52,6 +52,15 @@ const STATUS_CONFIG: Record<string, { title: string; subtitle: string; icon: any
     badgeBg: 'bg-blue-50 border-blue-200',
     badgeText: 'text-blue-700',
   },
+  PAYMENT_FAILED: {
+    title: 'ตรวจสอบสลิปไม่สำเร็จ',
+    subtitle: 'กรุณาตรวจสอบรายละเอียดด้านล่าง แล้วส่งสลิปอีกครั้งเมื่อพร้อม',
+    icon: AlertCircle,
+    step: 1,
+    color: 'from-rose-500 to-red-600',
+    badgeBg: 'bg-rose-50 border-rose-200',
+    badgeText: 'text-rose-700',
+  },
   PAID: {
     title: 'ชำระเงินสำเร็จแล้ว',
     subtitle: 'ร้านค้ารับออเดอร์แล้ว กำลังส่งรายการเข้าครัว',
@@ -141,10 +150,15 @@ export default function OrderDetailPage() {
   });
 
   // Fetch QR Payload
-  const { data: qrData } = useQuery<any>({
+  const {
+    data: qrData,
+    isError: isQrError,
+    error: qrError,
+    refetch: refetchQr,
+  } = useQuery<any>({
     queryKey: ['order', orderId, 'qr'],
     queryFn: () => apiClient.get(`/orders/${orderId}/payment/qr`),
-    enabled: !!order && order.orderStatus === 'PENDING_PAYMENT',
+    enabled: !!order && ['PENDING_PAYMENT', 'PAYMENT_FAILED'].includes(order.orderStatus),
   });
 
   // Realtime Socket listener
@@ -243,9 +257,16 @@ export default function OrderDetailPage() {
   const currentStatus = order.orderStatus || 'PENDING_PAYMENT';
   const statusInfo = STATUS_CONFIG[currentStatus] || STATUS_CONFIG.PENDING_PAYMENT;
   const isPendingPayment = currentStatus === 'PENDING_PAYMENT';
+  const isPaymentFailed = currentStatus === 'PAYMENT_FAILED';
+  const canUploadSlip = isPendingPayment || isPaymentFailed;
+  const paymentFailureReason = isPaymentFailed
+    ? order.statusLogs?.find((log: any) => log.toStatus === 'PAYMENT_FAILED')?.reason
+    : null;
   const canSimulatePayment = isDevelopmentDemo && (currentStatus === 'PAYMENT_VERIFYING' || currentStatus === 'PAYMENT_FAILED');
   const isDelivered = currentStatus === 'DELIVERED';
   const isOutForDelivery = currentStatus === 'OUT_FOR_DELIVERY' || currentStatus === 'READY';
+  const deliveryStaff = order.delivery?.deliveryStaff;
+  const deliveryVehicle = [deliveryStaff?.vehicleType, deliveryStaff?.vehiclePlate].filter(Boolean).join(' · ');
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 pb-28">
@@ -302,7 +323,7 @@ export default function OrderDetailPage() {
           </p>
 
           {/* Delivery ETA Badge */}
-          {!isDelivered && currentStatus !== 'CANCELLED' && (
+          {!isDelivered && !['CANCELLED', 'PAYMENT_FAILED'].includes(currentStatus) && (
             <div className="mt-4 pt-3 border-t border-white/20 flex items-center justify-between text-xs">
               <span className="text-white/80">เวลาจัดส่งโดยประมาณ:</span>
               <span className="font-bold bg-white text-slate-900 px-3 py-0.5 rounded-full text-xs shadow-xs">
@@ -369,26 +390,27 @@ export default function OrderDetailPage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-sm text-slate-900">คนขับ: คุณสมชาย มุ่งมั่น</h3>
-                    <span className="text-[11px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-medium border border-amber-200/60">
-                      ⭐ 4.9
-                    </span>
+                    <h3 className="font-bold text-sm text-slate-900">
+                      {deliveryStaff ? `คนขับ: ${deliveryStaff.name}` : 'ร้านกำลังมอบหมายคนขับ'}
+                    </h3>
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">Honda Wave 110i (1กข 8924 กทม.)</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {deliveryStaff ? (deliveryVehicle || 'ยังไม่ได้ระบุข้อมูลรถ') : 'จะแจ้งข้อมูลคนขับเมื่อร้านมอบหมายงานแล้ว'}
+                  </p>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
-              <a
-                href="tel:0812345678"
+              {deliveryStaff?.phone ? <a
+                href={`tel:${deliveryStaff.phone}`}
                 className="flex items-center justify-center gap-2 py-2 bg-emerald-50 hover:bg-emerald-100 text-[#06C755] font-semibold text-xs rounded-xl transition-colors btn-tactile"
               >
                 <Phone className="w-3.5 h-3.5" />
-                โทรหาคนขับ
-              </a>
+                โทร {deliveryStaff.phone}
+              </a> : <div className="flex items-center justify-center gap-2 py-2 bg-slate-100 text-slate-400 font-semibold text-xs rounded-xl">รอข้อมูลเบอร์คนขับ</div>}
               <button
-                onClick={() => notify('กำลังเปิดการสนทนากับคนขับ', 'info')}
+                onClick={() => notify(deliveryStaff ? `ติดต่อร้านเพื่อส่งข้อความถึง ${deliveryStaff.name}` : 'ร้านกำลังมอบหมายคนขับ', 'info')}
                 className="flex items-center justify-center gap-2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-colors btn-tactile"
               >
                 <MessageCircle className="w-3.5 h-3.5" />
@@ -398,8 +420,8 @@ export default function OrderDetailPage() {
           </div>
         )}
 
-        {/* 5. PromptPay QR Code & Slip Upload Card (When Pending Payment) */}
-        {isPendingPayment && (
+        {/* 5. PromptPay QR Code & Slip Upload Card */}
+        {canUploadSlip && (
           <div className="bg-white rounded-2xl p-4 border border-amber-200/80 shadow-sm">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
@@ -416,6 +438,18 @@ export default function OrderDetailPage() {
               </span>
             </div>
 
+            {isPaymentFailed && (
+              <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <p className="font-black">ตรวจสลิปครั้งล่าสุดไม่สำเร็จ</p>
+                    <p className="mt-0.5 leading-relaxed">{paymentFailureReason || 'กรุณาตรวจสอบยอดเงินและส่งสลิปอีกครั้ง'}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* QR Code Container */}
             <div className="flex flex-col items-center py-4">
               <div className="p-3 bg-white border-2 border-slate-900 rounded-2xl shadow-sm mb-3 relative flex justify-center items-center w-52 h-52">
@@ -426,6 +460,20 @@ export default function OrderDetailPage() {
                     level="M"
                     includeMargin={false}
                   />
+                ) : isQrError ? (
+                  <div className="px-4 flex flex-col items-center justify-center text-center text-rose-600 gap-2">
+                    <AlertCircle className="w-6 h-6" />
+                    <span className="text-xs font-semibold">
+                      {qrError instanceof Error ? qrError.message : 'ไม่สามารถสร้าง QR Code ได้'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => refetchQr()}
+                      className="text-[11px] font-bold text-[#06C755] hover:text-[#05A848]"
+                    >
+                      ลองใหม่
+                    </button>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center text-slate-400 gap-2">
                     <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
@@ -442,7 +490,7 @@ export default function OrderDetailPage() {
               <div className="text-center mb-4">
                 <span className="text-xs text-slate-500 block mb-0.5">ยอดชำระสุทธิ</span>
                 <span className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                  {formatPrice(order.totalAmount || 0)}
+                  {formatPrice(order.total ?? order.totalAmount ?? 0)}
                 </span>
               </div>
 
@@ -596,19 +644,19 @@ export default function OrderDetailPage() {
                   </span>
                   <div>
                     <h4 className="text-xs font-semibold text-slate-900">
-                      {item.menuItem?.name || item.name || 'รายการอาหาร'}
+                      {item.productName || item.menuItem?.name || item.name || 'รายการอาหาร'}
                     </h4>
-                    {item.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
+                    {(item.variantName || item.modifiers?.length > 0) && (
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        {typeof item.selectedOptions === 'string'
-                          ? item.selectedOptions
-                          : JSON.stringify(item.selectedOptions).replace(/[{"}]/g, ' ')}
+                        {[item.variantName, ...(item.modifiers || []).map((modifier: any) => modifier.modifierName)]
+                          .filter(Boolean)
+                          .join(', ')}
                       </p>
                     )}
                   </div>
                 </div>
                 <span className="text-xs font-bold text-slate-900">
-                  {formatPrice(Number(item.price || 0) * Number(item.quantity || 1))}
+                  {formatPrice(Number(item.subtotal ?? Number(item.unitPrice || 0) * Number(item.quantity || 1)))}
                 </span>
               </div>
             ))}
@@ -618,7 +666,7 @@ export default function OrderDetailPage() {
           <div className="pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-600">
             <div className="flex justify-between">
               <span>ยอดรวมค่าอาหาร</span>
-              <span>{formatPrice(order.subtotal || order.totalAmount || 0)}</span>
+              <span>{formatPrice(order.subtotal ?? order.total ?? order.totalAmount ?? 0)}</span>
             </div>
             <div className="flex justify-between">
               <span>ค่าจัดส่ง</span>
@@ -626,16 +674,16 @@ export default function OrderDetailPage() {
                 {order.deliveryFee ? formatPrice(order.deliveryFee) : '฿0 (โปรโมชั่นฟรี)'}
               </span>
             </div>
-            {order.discountAmount > 0 && (
+            {Number(order.discount ?? order.discountAmount ?? 0) > 0 && (
               <div className="flex justify-between text-rose-600">
                 <span>ส่วนลดโปรโมชั่น</span>
-                <span>-{formatPrice(order.discountAmount)}</span>
+                <span>-{formatPrice(order.discount ?? order.discountAmount)}</span>
               </div>
             )}
             <div className="flex justify-between items-center pt-2.5 border-t border-slate-200 text-sm font-extrabold text-slate-900">
               <span>ยอดชำระทั้งหมด</span>
               <span className="text-base text-[#06C755]">
-                {formatPrice(order.totalAmount || 0)}
+                {formatPrice(order.total ?? order.totalAmount ?? 0)}
               </span>
             </div>
           </div>
