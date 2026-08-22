@@ -86,6 +86,7 @@ export type UpdateBranchStorefrontDtoType = z.infer<typeof UpdateBranchStorefron
 
 export const UpdateBranchSettingsSchema = z.object({
   name: z.string().trim().min(1, 'Store name is required').max(120),
+  address: z.string().trim().max(500).nullable().optional(),
   paymentReceiverType: z.enum(['PROMPTPAY', 'BANK_ACCOUNT']).nullable().optional(),
   paymentReceiverValue: z.string().trim().min(1).max(50).nullable().optional(),
   paymentReceiverName: z.string().trim().max(120).nullable().optional(),

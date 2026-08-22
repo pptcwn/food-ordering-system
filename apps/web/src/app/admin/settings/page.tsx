@@ -19,6 +19,7 @@ export default function AdminSettingsPage() {
   const { confirm, notify } = useFeedback();
   const [selectedBranchId, setSelectedBranchId] = useState('');
   const [storeName, setStoreName] = useState('');
+  const [storeAddress, setStoreAddress] = useState('');
   const [paymentReceiverType, setPaymentReceiverType] = useState('PROMPTPAY');
   const [paymentReceiverValue, setPaymentReceiverValue] = useState('');
   const [paymentReceiverName, setPaymentReceiverName] = useState('');
@@ -79,6 +80,7 @@ export default function AdminSettingsPage() {
     // Do not overwrite coordinates while this branch's settings form is being edited.
     if (!branch || hydratedBranchIdRef.current === branch.id) return;
     setStoreName(branch.name || '');
+    setStoreAddress(branch.address || '');
     setPaymentReceiverType(branch.paymentReceiverType || 'PROMPTPAY');
     setPaymentReceiverValue(branch.paymentReceiverValue || '');
     setPaymentReceiverName(branch.paymentReceiverName || '');
@@ -93,6 +95,7 @@ export default function AdminSettingsPage() {
   const updateNameMutation = useMutation({
     mutationFn: () => apiClient.patch(`/branches/${selectedBranchId}/settings`, {
       name: storeName.trim(),
+      address: storeAddress.trim() || null,
       paymentReceiverType: paymentReceiverValue.trim() ? paymentReceiverType : null,
       paymentReceiverValue: paymentReceiverValue.trim().replace(/[^0-9A-Za-z]/g, '') || null,
       paymentReceiverName: paymentReceiverName.trim() || null,
@@ -223,6 +226,7 @@ export default function AdminSettingsPage() {
               <div className="rounded-2xl border border-sky-200 bg-sky-50/60 p-4">
                 <div className="mb-4 flex items-start gap-2"><div className="rounded-xl bg-sky-100 p-2 text-sky-700"><Truck className="h-4 w-4" /></div><div><h3 className="text-sm font-black text-slate-900">พิกัดและค่าจัดส่ง</h3><p className="text-[11px] text-slate-600">ระยะทางคำนวณจากพิกัดร้านถึงพิกัดลูกค้า คิดค่าบริการเฉพาะส่วนที่เกินระยะฟรี</p></div></div>
                 <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs font-bold text-slate-800 sm:col-span-2">ที่อยู่ร้าน<input value={storeAddress} onChange={(e) => setStoreAddress(e.target.value)} maxLength={500} placeholder="เช่น 123 ถนนสุขุมวิท แขวง... เขต... กรุงเทพมหานคร 10110" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-600" /></label>
                   <label className="text-xs font-bold text-slate-800">ละติจูดร้าน<input value={latitude} onChange={(e) => setLatitude(e.target.value)} inputMode="decimal" placeholder="13.7563" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-600" /></label>
                   <label className="text-xs font-bold text-slate-800">ลองจิจูดร้าน<input value={longitude} onChange={(e) => setLongitude(e.target.value)} inputMode="decimal" placeholder="100.5018" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-600" /></label>
                   <label className="text-xs font-bold text-slate-800">ระยะฟรีค่าส่ง (กม.)<input value={freeDeliveryDistanceKm} onChange={(e) => setFreeDeliveryDistanceKm(e.target.value)} inputMode="decimal" min="0" max="100" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-600" /></label>
