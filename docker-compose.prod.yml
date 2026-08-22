@@ -71,6 +71,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
+      - MINIO_PUBLIC_PRODUCTS_URL=${MINIO_PUBLIC_PRODUCTS_URL:-http://34.126.172.168:9000}
     ports:
       - "4000:4000"
 

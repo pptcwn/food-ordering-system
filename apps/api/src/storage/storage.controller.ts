@@ -78,12 +78,9 @@ export class StorageController {
   }
 
   private getPublicEndpoint() {
-    const configuredUrl = this.configService.get<string>('MINIO_SERVER_URL');
+    const configuredUrl = this.configService.get<string>('MINIO_PUBLIC_PRODUCTS_URL');
     if (configuredUrl) return configuredUrl.replace(/\/$/, '');
 
-    const endpoint = this.configService.get<string>('MINIO_ENDPOINT', 'localhost');
-    const port = this.configService.get<number>('MINIO_PORT', 9000);
-    const useSsl = this.configService.get<string>('MINIO_USE_SSL', 'false') === 'true';
-    return `${useSsl ? 'https' : 'http'}://${endpoint}:${port}`;
+    throw new BadRequestException('ยังไม่ได้ตั้งค่า URL สาธารณะสำหรับรูปภาพสินค้า');
   }
 }
