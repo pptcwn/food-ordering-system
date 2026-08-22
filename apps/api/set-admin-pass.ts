@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   const passwordHash = await bcrypt.hash('admin1234', 12);
-  const user = await prisma.user.updateMany({
+  await prisma.user.update({
     where: { email: 'admin@foodordering.com' },
     data: { passwordHash },
   });
