@@ -183,6 +183,8 @@ model Branch {
   address              String?
   latitude             Decimal?             @db.Decimal(10, 8)
   longitude            Decimal?             @db.Decimal(11, 8)
+  freeDeliveryDistanceKm Decimal             @default(3) @map("free_delivery_distance_km") @db.Decimal(6, 2)
+  deliveryFeePerKm     Decimal              @default(8) @map("delivery_fee_per_km") @db.Decimal(10, 2)
   openingTime          String?              @map("opening_time") // e.g. "10:00"
   closingTime          String?              @map("closing_time") // e.g. "22:00"
   lastOrderTime        String?              @map("last_order_time") // e.g. "21:30"
@@ -207,8 +209,126 @@ model Branch {
   orders               Order[]
   deliveryStaff        DeliveryStaff[]
   promotions           Promotion[]
+  expenses             Expense[]
+  expenseVendors       ExpenseVendor[]
+  revenueSettlements   RevenueSettlement[]
 
   @@map("branches")
+}
+
+model ExpenseVendor {
+  id            String    @id @default(uuid())
+  branchId      String?   @map("branch_id")
+  name          String
+  taxId         String?   @map("tax_id")
+  address       String?
+  office        String?
+  phone         String?
+  email         String?
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  branch        Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  expenses      Expense[]
+
+  @@index([branchId, isActive])
+  @@map("expense_vendors")
+}
+
+model Expense {
+  id              String              @id @default(uuid())
+  branchId        String              @map("branch_id")
+  vendorId        String?             @map("vendor_id")
+  vendorName      String?             @map("vendor_name")
+  vendorTaxId     String?             @map("vendor_tax_id")
+  vendorAddress   String?             @map("vendor_address")
+  vendorOffice    String?             @map("vendor_office")
+  expenseDate     DateTime            @map("expense_date")
+  paidAt          DateTime?           @map("paid_at")
+  category        String
+  description     String
+  documentNumber  String?             @map("document_number")
+  subtotal        Decimal             @db.Decimal(12, 2)
+  vatAmount       Decimal             @default(0) @db.Decimal(12, 2) @map("vat_amount")
+  total           Decimal             @db.Decimal(12, 2)
+  status          String              @default("CONFIRMED")
+  createdBy       String?             @map("created_by")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  branch          Branch              @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  vendor          ExpenseVendor?      @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  attachments     ExpenseAttachment[]
+
+  @@index([branchId, expenseDate])
+  @@index([status, expenseDate])
+  @@map("expenses")
+}
+
+model ExpenseAttachment {
+  id          String   @id @default(uuid())
+  expenseId   String   @map("expense_id")
+  bucket      String
+  objectKey   String   @map("object_key")
+  mimeType    String   @map("mime_type")
+  size        Int
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  expense     Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@map("expense_attachments")
+}
+
+model RevenueSettlement {
+  id              String             @id @default(uuid())
+  branchId        String             @map("branch_id")
+  source          String
+  settlementDate  DateTime           @map("settlement_date")
+  periodStart     DateTime?          @map("period_start")
+  periodEnd       DateTime?          @map("period_end")
+  referenceNumber String?            @map("reference_number")
+  grossAmount     Decimal            @db.Decimal(12, 2) @map("gross_amount")
+  deductionsTotal Decimal            @default(0) @db.Decimal(12, 2) @map("deductions_total")
+  netAmount       Decimal            @db.Decimal(12, 2) @map("net_amount")
+  note            String?
+  createdBy       String?            @map("created_by")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  branch          Branch             @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  deductions      RevenueDeduction[]
+  attachments     RevenueAttachment[]
+
+  @@index([branchId, source, settlementDate])
+  @@map("revenue_settlements")
+}
+
+model RevenueDeduction {
+  id           String            @id @default(uuid())
+  settlementId String            @map("settlement_id")
+  type         String
+  description  String?
+  amount       Decimal           @db.Decimal(12, 2)
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  settlement   RevenueSettlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+
+  @@map("revenue_deductions")
+}
+
+model RevenueAttachment {
+  id           String            @id @default(uuid())
+  settlementId String            @map("settlement_id")
+  bucket       String
+  objectKey    String            @map("object_key")
+  mimeType     String            @map("mime_type")
+  size         Int
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  settlement   RevenueSettlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+
+  @@map("revenue_attachments")
 }
 
 model BranchOpeningHour {
@@ -254,6 +374,7 @@ model Product {
   description   String?
   imageUrl      String?                @map("image_url")
   basePrice     Decimal                @db.Decimal(10, 2) @map("base_price")
+  salePrice     Decimal?               @db.Decimal(10, 2) @map("sale_price")
   isAvailable   Boolean                @default(true) @map("is_available") // Realtime Sold-Out Toggle
   isActive      Boolean                @default(true) @map("is_active")
   sortOrder     Int                    @default(0) @map("sort_order")
@@ -563,14 +684,16 @@ model Address {
 }
 
 model DeliveryStaff {
-  id          String        @id @default(uuid())
-  branchId    String        @map("branch_id")
-  name        String
-  phone       String
-  status      String        @default("AVAILABLE") // AVAILABLE, BUSY, OFFLINE
-  isActive    Boolean       @default(true) @map("is_active")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  id           String        @id @default(uuid())
+  branchId     String        @map("branch_id")
+  name         String
+  phone        String
+  vehicleType  String?       @map("vehicle_type")
+  vehiclePlate String?       @map("vehicle_plate")
+  status       String        @default("AVAILABLE") // AVAILABLE, BUSY, OFFLINE
+  isActive     Boolean       @default(true) @map("is_active")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
 
   branch      Branch        @relation(fields: [branchId], references: [id], onDelete: Restrict)
   deliveries  Delivery[]

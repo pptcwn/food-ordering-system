@@ -90,6 +90,11 @@ export class MinioService implements OnModuleInit {
     });
   }
 
+  async removeFiles(bucketName: string, objectNames: string[]): Promise<void> {
+    if (objectNames.length === 0) return;
+    await this.client.removeObjects(bucketName, objectNames);
+  }
+
   getClient(): Minio.Client {
     return this.client;
   }

@@ -21,6 +21,8 @@ import { KitchenModule } from './kitchen/kitchen.module';
 import { DeliveryModule } from './delivery/delivery.module';
 import { LineModule } from './line/line.module';
 import { PromotionsModule } from './promotions/promotions.module';
+import { ExpensesModule } from './expenses/expenses.module';
+import { RevenueModule } from './revenue/revenue.module';
 
 @Module({
   imports: [
@@ -59,6 +61,8 @@ import { PromotionsModule } from './promotions/promotions.module';
     LineModule,
     // Blueprint §45, §71 — Promotions & Coupon Engine
     PromotionsModule,
+    ExpensesModule,
+    RevenueModule,
   ],
   providers: [
     // Global rate-limiting guard applied to all routes

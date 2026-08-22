@@ -14,7 +14,6 @@ import {
   Package,
   Award,
   Users,
-  Download,
   Tag,
   CreditCard,
   ChevronRight,
@@ -22,6 +21,7 @@ import {
   Calendar,
   Utensils,
   Settings,
+  ReceiptText,
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -57,11 +57,6 @@ export default function AdminDashboardPage() {
       apiClient.get(`/orders/admin/all?branchId=${selectedBranchId || ''}`),
     refetchInterval: 5000,
   });
-
-  const handleExportCsv = () => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
-    window.open(`${baseUrl}/admin/reports/sales/export?branchId=${selectedBranchId || ''}`, '_blank');
-  };
 
   const [adminUser, setAdminUser] = React.useState<any>(null);
 
@@ -131,18 +126,11 @@ export default function AdminDashboardPage() {
             ))}
           </select>
 
-          <button
-            onClick={handleExportCsv}
-            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export CSV</span>
-          </button>
         </div>
       </div>
 
       {/* Quick Navigation Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-9 gap-3">
         <button
           onClick={() => router.push('/admin/menu')}
           className="p-3.5 bg-white border border-emerald-200 hover:border-[#06C755] rounded-2xl flex items-center justify-between shadow-xs hover:shadow-sm transition text-left"
@@ -224,6 +212,22 @@ export default function AdminDashboardPage() {
         </button>
 
         <button
+          onClick={() => router.push('/delivery')}
+          className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-blue-300 hover:shadow-xs transition text-left"
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Bike className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-900">จัดส่ง</p>
+              <p className="text-[10px] text-slate-400">รับงาน & อัปเดตสถานะ</p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-slate-400" />
+        </button>
+
+        <button
           onClick={() => router.push('/admin/settings')}
           className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-[#1F5D45] hover:shadow-xs transition text-left"
         >
@@ -238,6 +242,9 @@ export default function AdminDashboardPage() {
           </div>
           <ChevronRight className="w-4 h-4 text-slate-400" />
         </button>
+
+        <button onClick={() => router.push('/admin/expenses')} className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-emerald-300 hover:shadow-xs transition text-left"><div className="flex items-center gap-2.5"><div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center"><ReceiptText className="w-4 h-4" /></div><div><p className="text-xs font-bold text-slate-900">รายจ่าย</p><p className="text-[10px] text-slate-400">สลิป ภาษี และสรุปรายเดือน</p></div></div><ChevronRight className="w-4 h-4 text-slate-400" /></button>
+        <button onClick={() => router.push('/admin/revenue')} className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-emerald-300 hover:shadow-xs transition text-left"><div className="flex items-center gap-2.5"><div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center"><TrendingUp className="w-4 h-4" /></div><div><p className="text-xs font-bold text-slate-900">รายรับ</p><p className="text-[10px] text-slate-400">ระบบ, Grab และ LINE MAN</p></div></div><ChevronRight className="w-4 h-4 text-slate-400" /></button>
       </div>
 
       {/* KPI Cards Grid */}

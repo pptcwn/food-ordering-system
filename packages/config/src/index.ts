@@ -3,6 +3,8 @@ export const BUCKET_NAMES = {
   SLIPS: process.env.MINIO_SLIPS_BUCKET || 'food-slips',
   RECEIPTS: process.env.MINIO_RECEIPTS_BUCKET || 'food-receipts',
   DELIVERY: process.env.MINIO_DELIVERY_BUCKET || 'food-delivery',
+  EXPENSES: process.env.MINIO_EXPENSES_BUCKET || 'food-expenses',
+  REVENUE: process.env.MINIO_REVENUE_BUCKET || 'food-revenue-documents',
 } as const;
 
 export const APP_CONFIG = {
