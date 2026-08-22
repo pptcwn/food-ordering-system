@@ -57,3 +57,13 @@ Thumbs.db
 .superpowers/
 output/
 .claude/hooks/.logs/
+
+# Local AI agent harness configuration and generated blueprint
+.agents/skills/
+.claude/
+.codex/
+.vc-installed-files
+.vc-version
+CLAUDE.md
+AGENTS.md
+line_food_ordering_blueprint(1).md
