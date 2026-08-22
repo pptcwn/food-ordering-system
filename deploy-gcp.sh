@@ -59,8 +59,8 @@ docker compose -f docker-compose.prod.yml build api
 # Apply migrations from the new API image before starting the API service.
 # A new Prisma schema can otherwise make the running API restart before `exec` can run.
 echo "🗄️ 6/6 Running Prisma Database Migrations..."
-docker compose -f docker-compose.prod.yml run --rm --no-deps api npx prisma migrate resolve --applied 000000000000_baseline --schema=packages/database/prisma/schema.prisma || true
-if ! docker compose -f docker-compose.prod.yml run --rm --no-deps api npx prisma migrate deploy --schema=packages/database/prisma/schema.prisma; then
+docker compose -f docker-compose.prod.yml run --rm --no-deps api pnpm --filter @food-ordering/database exec prisma migrate resolve --applied 000000000000_baseline --schema=prisma/schema.prisma || true
+if ! docker compose -f docker-compose.prod.yml run --rm --no-deps api pnpm --filter @food-ordering/database exec prisma migrate deploy --schema=prisma/schema.prisma; then
   docker compose -f docker-compose.prod.yml logs --tail=200 api || true
   exit 1
 fi
