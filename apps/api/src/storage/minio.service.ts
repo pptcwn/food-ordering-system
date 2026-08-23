@@ -7,6 +7,7 @@ import { BUCKET_NAMES, APP_CONFIG } from '@food-ordering/config';
 export class MinioService implements OnModuleInit {
   private readonly logger = new Logger(MinioService.name);
   private client: Minio.Client;
+  private publicPresignClient?: Minio.Client;
 
   constructor(private configService: ConfigService) {
     const endPoint = this.configService.get<string>('MINIO_ENDPOINT', 'localhost');
@@ -22,6 +23,18 @@ export class MinioService implements OnModuleInit {
       accessKey,
       secretKey,
     });
+
+    const publicPresignUrl = this.configService.get<string>('MINIO_PUBLIC_PRESIGNED_URL');
+    if (publicPresignUrl) {
+      const endpoint = new URL(publicPresignUrl);
+      this.publicPresignClient = new Minio.Client({
+        endPoint: endpoint.hostname,
+        port: Number(endpoint.port || (endpoint.protocol === 'https:' ? 443 : 80)),
+        useSSL: endpoint.protocol === 'https:',
+        accessKey,
+        secretKey,
+      });
+    }
   }
 
   async onModuleInit() {
@@ -77,7 +90,8 @@ export class MinioService implements OnModuleInit {
     objectName: string,
     expirySeconds = APP_CONFIG.PRESIGNED_URL_EXPIRATION_SECONDS,
   ): Promise<string> {
-    return this.client.presignedGetObject(bucketName, objectName, expirySeconds);
+    // Sign private attachment URLs with a browser-reachable hostname, not Docker's `minio` service name.
+    return (this.publicPresignClient || this.client).presignedGetObject(bucketName, objectName, expirySeconds);
   }
 
   async getFileBuffer(bucketName: string, objectName: string): Promise<Buffer> {
