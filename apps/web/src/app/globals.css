@@ -2,6 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+.demo-role-dock { position: fixed; right: 1rem; bottom: 1rem; z-index: 80; display: flex; align-items: center; gap: .25rem; padding: .375rem; border: 1px solid hsl(var(--border)); border-radius: 1.125rem; background: rgb(255 253 248 / .94); box-shadow: 0 16px 50px rgb(23 56 45 / .16); backdrop-filter: blur(16px); }
+.demo-role-dock a { display:flex; align-items:center; gap:.45rem; min-height:2.75rem; padding:0 .8rem; border-radius:.8rem; color:#66756e; font-size:.78rem; font-weight:750; transition:.2s ease; }
+.demo-role-dock a:hover { background:#e7eee8; color:#17382d; }
+.demo-role-dock a.is-active { background:#205c45; color:#fffdf8; }
+.demo-role-dock svg { width:1rem; height:1rem; }
+.demo-role-label { padding:0 .55rem; color:#ef7b45; font-size:.65rem; font-weight:900; letter-spacing:.14em; }
+
+/* Modern Thai Food design bridge for the complete prototype */
+.bg-white { background-color:#fffdf8 !important; }
+.bg-slate-50, .bg-zinc-50, .bg-slate-100 { background-color:#f7f5ef !important; }
+.text-slate-900, .text-zinc-900 { color:#17382d !important; }
+.border-slate-200, .border-zinc-200, .border-slate-100, .border-zinc-100 { border-color:#dedbd1 !important; }
+.bg-emerald-600, .bg-\[\#00A86B\] { background-color:#205c45 !important; }
+.text-emerald-700, .text-\[\#00A86B\] { color:#205c45 !important; }
+.rounded-3xl { border-radius:1.25rem; }
+.shadow-sm { box-shadow:0 8px 26px rgb(23 56 45 / .06); }
+button, a { -webkit-tap-highlight-color:transparent; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline:3px solid rgb(32 92 69 / .28); outline-offset:2px; }
+
+@media (max-width:720px) { .demo-role-dock { left:.75rem; right:.75rem; bottom:5.55rem; justify-content:space-between; } .demo-role-label { display:none; } .demo-role-dock a { flex:1; justify-content:center; padding:0 .45rem; } .demo-role-dock a span { font-size:.7rem; } }
+
 @layer base {
   :root {
     --background: 0 0% 100%;

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import Providers from './providers';
+import { DemoRoleDock } from '@/components/demo-role-dock';
 
 export const metadata: Metadata = {
   title: 'Food Delivery — สั่งอาหารง่ายๆ สไตล์ LINE MAN',
@@ -13,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="th">
+    <html lang="th" className="bg-background">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -27,6 +28,7 @@ export default function RootLayout({
           <div className="w-full min-h-[100dvh] bg-white shadow-2xl flex flex-col relative border-x border-slate-200/80 lg:max-w-none lg:shadow-none">
             {children}
           </div>
+          <DemoRoleDock />
         </Providers>
       </body>
     </html>

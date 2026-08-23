@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getDemoResponse, isDemoMode } from './demo-api';
 
 function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
@@ -24,6 +25,15 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     config.baseURL = '/api';
+    if (isDemoMode()) {
+      config.adapter = async () => ({
+        data: getDemoResponse(config.url),
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      });
+    }
 
     const token = localStorage.getItem('access_token');
     if (token) {
@@ -50,6 +60,13 @@ apiClient.interceptors.response.use(
     return response.data;
   },
   (error) => {
+    if (isDemoMode()) {
+      const method = error.config?.method?.toLowerCase();
+      if (method === 'get') {
+        return Promise.resolve(getDemoResponse(error.config?.url));
+      }
+      return Promise.resolve({ id: `demo-${Date.now()}`, success: true });
+    }
     const message =
       error.response?.data?.message ||
       error.response?.data?.error ||

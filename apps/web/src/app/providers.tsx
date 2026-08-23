@@ -23,6 +23,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    if (!localStorage.getItem('ux_demo_mode')) localStorage.setItem('ux_demo_mode', 'true');
+    if (!localStorage.getItem('access_token')) localStorage.setItem('access_token', 'ux-demo-token');
+    if (!localStorage.getItem('admin_user')) localStorage.setItem('admin_user', JSON.stringify({ role: 'SUPER_ADMIN', name: 'ผู้จัดการร้าน' }));
     if (process.env.NEXT_PUBLIC_DEV_DEMO_ENABLED !== 'true') return;
 
     bootstrapDevDemoSession({
