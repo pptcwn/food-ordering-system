@@ -1,9 +1,11 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsNotEmpty } from 'class-validator';
 import { AuthService } from './auth.service';
 
 export class LineLoginDto {
+  @IsString()
+  @IsNotEmpty()
   idToken: string;
 }
 
@@ -17,6 +19,8 @@ export class AdminLoginDto {
 }
 
 export class RefreshTokenDto {
+  @IsString()
+  @IsNotEmpty()
   refreshToken: string;
 }
 
