@@ -499,6 +499,69 @@ export class OrdersService {
   }
 
   /**
+   * Customer self-service cancellation (only before PREPARING)
+   */
+  async cancelOrderByCustomer(orderId: string, userId: string, reason?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.userId !== userId) throw new BadRequestException('You can only cancel your own orders');
+
+    const cancellableStatuses: string[] = [
+      OrderStatus.PENDING_PAYMENT,
+      OrderStatus.PAYMENT_VERIFYING,
+      OrderStatus.PAID,
+      OrderStatus.CONFIRMED,
+    ];
+    if (!cancellableStatuses.includes(order.orderStatus)) {
+      throw new BadRequestException(
+        `Cannot cancel order in status "${order.orderStatus}". Cancellation is only allowed before the kitchen starts preparing.`,
+      );
+    }
+
+    const previousStatus = order.orderStatus;
+    const updatedOrder = await this.prisma.$transaction(async (tx) => {
+      const o = await tx.order.update({
+        where: { id: orderId },
+        data: { orderStatus: OrderStatus.CANCELLED },
+        include: { branch: true },
+      });
+      await tx.orderStatusLog.create({
+        data: {
+          orderId,
+          fromStatus: previousStatus,
+          toStatus: OrderStatus.CANCELLED,
+          changedBy: 'CUSTOMER',
+          reason: reason || 'Cancelled by customer',
+        },
+      });
+      return o;
+    });
+
+    this.eventsGateway.emitOrderStatusChanged({
+      orderId: updatedOrder.id,
+      orderNo: updatedOrder.orderNo,
+      branchId: updatedOrder.branchId,
+      status: OrderStatus.CANCELLED,
+      paymentStatus: updatedOrder.paymentStatus as PaymentStatus,
+    });
+
+    try {
+      await this.notificationsQueue.add('NOTIFY_STATUS_CHANGE', {
+        orderId: updatedOrder.id,
+        orderNo: updatedOrder.orderNo,
+        status: OrderStatus.CANCELLED,
+        branchId: updatedOrder.branchId,
+        customerName: updatedOrder.customerName,
+        lineUserId: updatedOrder.lineUserId,
+      });
+    } catch (err) {
+      this.logger.warn(`Could not enqueue cancellation notification: ${err}`);
+    }
+
+    return updatedOrder;
+  }
+
+  /**
    * Helper: Generate unique formatted order number (e.g. XC260818-0042)
    */
   private async generateOrderNumber(): Promise<string> {

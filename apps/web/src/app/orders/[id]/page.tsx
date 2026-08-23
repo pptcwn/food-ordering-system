@@ -5,132 +5,31 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
-import { formatPrice } from '@/lib/utils';
 import { useFeedback } from '@/components/ui/feedback-provider';
-import { WS_EVENTS, OrderStatus } from '@food-ordering/types';
+import { WS_EVENTS } from '@food-ordering/types';
 import {
   ArrowLeft,
-  CheckCircle2,
-  Clock,
-  ChefHat,
-  Bike,
-  PackageCheck,
-  QrCode,
-  Upload,
   AlertCircle,
   Loader2,
   Copy,
-  Phone,
-  MessageCircle,
-  MapPin,
-  Store,
-  Receipt,
-  FileCheck,
-  ChevronRight,
-  ShieldCheck,
   RotateCcw,
-  Sparkles,
+  ShieldCheck,
+  ChevronRight,
+  XCircle,
 } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
 
-const STATUS_CONFIG: Record<string, { title: string; subtitle: string; icon: any; step: number; color: string; badgeBg: string; badgeText: string }> = {
-  PENDING_PAYMENT: {
-    title: 'รอการชำระเงิน',
-    subtitle: 'กรุณาสแกน QR Code หรืออัปโหลดสลิปเพื่อยืนยันออเดอร์',
-    icon: Clock,
-    step: 1,
-    color: 'from-amber-500 to-orange-500',
-    badgeBg: 'bg-amber-50 border-amber-200',
-    badgeText: 'text-amber-700',
-  },
-  PAYMENT_VERIFYING: {
-    title: 'กำลังตรวจสอบสลิป...',
-    subtitle: 'ระบบกำลังตรวจสอบยอดเงินด้วย Slip2Go สักครู่ครับ',
-    icon: FileCheck,
-    step: 2,
-    color: 'from-blue-500 to-indigo-600',
-    badgeBg: 'bg-blue-50 border-blue-200',
-    badgeText: 'text-blue-700',
-  },
-  PAYMENT_FAILED: {
-    title: 'ตรวจสอบสลิปไม่สำเร็จ',
-    subtitle: 'กรุณาตรวจสอบรายละเอียดด้านล่าง แล้วส่งสลิปอีกครั้งเมื่อพร้อม',
-    icon: AlertCircle,
-    step: 1,
-    color: 'from-rose-500 to-red-600',
-    badgeBg: 'bg-rose-50 border-rose-200',
-    badgeText: 'text-rose-700',
-  },
-  PAID: {
-    title: 'ชำระเงินสำเร็จแล้ว',
-    subtitle: 'ร้านค้ารับออเดอร์แล้ว กำลังส่งรายการเข้าครัว',
-    icon: CheckCircle2,
-    step: 2,
-    color: 'from-emerald-500 to-teal-600',
-    badgeBg: 'bg-emerald-50 border-emerald-200',
-    badgeText: 'text-emerald-700',
-  },
-  CONFIRMED: {
-    title: 'ร้านค้ารับออเดอร์แล้ว',
-    subtitle: 'กำลังเตรียมจัดคิวเข้าครัว',
-    icon: Store,
-    step: 2,
-    color: 'from-emerald-500 to-teal-600',
-    badgeBg: 'bg-emerald-50 border-emerald-200',
-    badgeText: 'text-emerald-700',
-  },
-  PREPARING: {
-    title: 'ร้านกำลังปรุงอาหารของคุณ 🍳',
-    subtitle: 'เชฟกำลังปรุงอาหารสดใหม่ตามคิวของคุณ',
-    icon: ChefHat,
-    step: 3,
-    color: 'from-emerald-600 to-green-600',
-    badgeBg: 'bg-emerald-50 border-emerald-200',
-    badgeText: 'text-emerald-700',
-  },
-  READY: {
-    title: 'อาหารปรุงเสร็จแล้ว 📦',
-    subtitle: 'แพ็กอาหารเรียบร้อย พร้อมส่งมอบให้ไรเดอร์',
-    icon: PackageCheck,
-    step: 4,
-    color: 'from-emerald-600 to-green-600',
-    badgeBg: 'bg-emerald-50 border-emerald-200',
-    badgeText: 'text-emerald-700',
-  },
-  OUT_FOR_DELIVERY: {
-    title: 'ไรเดอร์กำลังนำอาหารไปส่ง 🛵',
-    subtitle: 'คนขับกำลังเดินทางไปยังจุดหมายของคุณ',
-    icon: Bike,
-    step: 5,
-    color: 'from-[#06C755] to-[#04943E]',
-    badgeBg: 'bg-emerald-50 border-emerald-200',
-    badgeText: 'text-emerald-700',
-  },
-  DELIVERED: {
-    title: 'จัดส่งอาหารสำเร็จแล้ว 🎉',
-    subtitle: 'ขอให้อร่อยกับมื้ออาหารของคุณ ขอบคุณที่ใช้บริการครับ',
-    icon: CheckCircle2,
-    step: 6,
-    color: 'from-emerald-600 to-teal-600',
-    badgeBg: 'bg-emerald-50 border-emerald-200',
-    badgeText: 'text-emerald-700',
-  },
-  CANCELLED: {
-    title: 'ออเดอร์ถูกยกเลิก',
-    subtitle: 'รายการนี้ถูกยกเลิกแล้ว หากมีข้อสงสัยติดต่อฝ่ายบริการลูกค้า',
-    icon: AlertCircle,
-    step: 0,
-    color: 'from-rose-500 to-red-600',
-    badgeBg: 'bg-rose-50 border-rose-200',
-    badgeText: 'text-rose-700',
-  },
-};
+import { OrderStatusHero } from '@/components/customer/order-status-hero';
+import { OrderProgressStepper } from '@/components/customer/order-progress-stepper';
+import { RiderInfoCard } from '@/components/customer/rider-info-card';
+import { PromptPayQrCard } from '@/components/customer/promptpay-qr-card';
+import { OrderLocationCard } from '@/components/customer/order-location-card';
+import { OrderReceiptSummary } from '@/components/customer/order-receipt-summary';
 
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { notify } = useFeedback();
+  const { notify, confirm } = useFeedback();
   const orderId = params.id as string;
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -139,7 +38,6 @@ export default function OrderDetailPage() {
   const [copied, setCopied] = useState(false);
   const isDevelopmentDemo = process.env.NEXT_PUBLIC_DEV_DEMO_ENABLED === 'true';
 
-  // Fetch Order
   const { data: order, isLoading, isError } = useQuery<any>({
     queryKey: ['order', orderId],
     queryFn: () => apiClient.get(`/orders/${orderId}`),
@@ -149,7 +47,6 @@ export default function OrderDetailPage() {
     },
   });
 
-  // Fetch QR Payload
   const {
     data: qrData,
     isError: isQrError,
@@ -161,7 +58,6 @@ export default function OrderDetailPage() {
     enabled: !!order && ['PENDING_PAYMENT', 'PAYMENT_FAILED'].includes(order.orderStatus),
   });
 
-  // Realtime Socket listener
   useEffect(() => {
     const socket = getSocket();
     if (order?.branchId) {
@@ -179,7 +75,6 @@ export default function OrderDetailPage() {
     };
   }, [order?.branchId, orderId, queryClient]);
 
-  // Upload Slip Mutation
   const uploadSlipMutation = useMutation({
     mutationFn: (file: File) => {
       const formData = new FormData();
@@ -209,6 +104,29 @@ export default function OrderDetailPage() {
       setUploadMsg({ text: err?.message || 'ไม่สามารถจำลองการชำระเงินได้', isError: true });
     },
   });
+
+  const cancelOrderMutation = useMutation({
+    mutationFn: (reason: string) => apiClient.patch(`/orders/${orderId}/cancel`, { reason }),
+    onSuccess: () => {
+      notify('ยกเลิกคำสั่งซื้อสำเร็จ', 'success');
+      queryClient.invalidateQueries({ queryKey: ['order', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['my-orders'] });
+    },
+    onError: (err: any) => {
+      notify(err.message || 'ไม่สามารถยกเลิกคำสั่งซื้อได้', 'error');
+    }
+  });
+
+  const handleCancelOrder = async () => {
+    const confirmed = await confirm({
+      title: 'ยกเลิกคำสั่งซื้อ?',
+      description: 'เมื่อยกเลิกแล้วจะไม่สามารถกู้คืนได้',
+      destructive: true,
+    });
+    if (confirmed) {
+      cancelOrderMutation.mutate('Customer requested cancellation');
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -255,7 +173,6 @@ export default function OrderDetailPage() {
   }
 
   const currentStatus = order.orderStatus || 'PENDING_PAYMENT';
-  const statusInfo = STATUS_CONFIG[currentStatus] || STATUS_CONFIG.PENDING_PAYMENT;
   const isPendingPayment = currentStatus === 'PENDING_PAYMENT';
   const isPaymentFailed = currentStatus === 'PAYMENT_FAILED';
   const canUploadSlip = isPendingPayment || isPaymentFailed;
@@ -263,14 +180,11 @@ export default function OrderDetailPage() {
     ? order.statusLogs?.find((log: any) => log.toStatus === 'PAYMENT_FAILED')?.reason
     : null;
   const canSimulatePayment = isDevelopmentDemo && (currentStatus === 'PAYMENT_VERIFYING' || currentStatus === 'PAYMENT_FAILED');
-  const isDelivered = currentStatus === 'DELIVERED';
   const isOutForDelivery = currentStatus === 'OUT_FOR_DELIVERY' || currentStatus === 'READY';
   const deliveryStaff = order.delivery?.deliveryStaff;
-  const deliveryVehicle = [deliveryStaff?.vehicleType, deliveryStaff?.vehiclePlate].filter(Boolean).join(' · ');
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 pb-28">
-      {/* 1. Sticky Top Navigation Bar (LINE MAN style) */}
       <header className="sticky top-0 z-30 bg-white border-b border-slate-100 px-4 py-3.5 flex items-center justify-between shadow-xs">
         <button
           onClick={() => router.push('/orders')}
@@ -301,403 +215,66 @@ export default function OrderDetailPage() {
         </button>
       </header>
 
-      {/* 2. Hero Live Status Banner (LINE MAN / Grab emerald gradient) */}
-      <div className={`bg-gradient-to-br ${statusInfo.color} text-white p-5 pt-6 pb-7 shadow-md relative overflow-hidden`}>
-        {/* Subtle background graphics */}
-        <div className="absolute -right-6 -bottom-6 w-36 h-36 bg-white/10 rounded-full blur-xl pointer-events-none" />
-        <div className="absolute right-4 top-4 opacity-15 pointer-events-none">
-          <statusInfo.icon className="w-24 h-24 text-white" />
-        </div>
+      <OrderStatusHero status={currentStatus} orderType={order.orderType} isDelivery={order.orderType === 'DELIVERY'} />
 
-        <div className="relative z-10">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-semibold tracking-wide text-white mb-3">
-            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
-            {currentStatus === 'OUT_FOR_DELIVERY' ? 'กำลังจัดส่งด่วน' : 'สถานะสด'}
-          </div>
-
-          <h2 className="text-xl font-bold text-white mb-1.5 flex items-center gap-2">
-            {statusInfo.title}
-          </h2>
-          <p className="text-white/90 text-xs font-normal leading-relaxed max-w-[320px]">
-            {statusInfo.subtitle}
-          </p>
-
-          {/* Delivery ETA Badge */}
-          {!isDelivered && !['CANCELLED', 'PAYMENT_FAILED'].includes(currentStatus) && (
-            <div className="mt-4 pt-3 border-t border-white/20 flex items-center justify-between text-xs">
-              <span className="text-white/80">เวลาจัดส่งโดยประมาณ:</span>
-              <span className="font-bold bg-white text-slate-900 px-3 py-0.5 rounded-full text-xs shadow-xs">
-                {currentStatus === 'OUT_FOR_DELIVERY' ? '10-15 นาที' : '20-30 นาที'}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 3. Live Progress Stepper (4-Step Pipeline) */}
-      <div className="bg-white border-b border-slate-200/80 px-4 py-4 mb-3 shadow-xs">
-        <div className="flex items-center justify-between relative">
-          {/* Background connect line */}
-          <div className="absolute top-4 left-6 right-6 h-0.5 bg-slate-200 -z-0" />
-          
-          {[
-            { step: 1, label: 'สั่งซื้อ', icon: QrCode },
-            { step: 2, label: 'รับออเดอร์', icon: Store },
-            { step: 3, label: 'ปรุงอาหาร', icon: ChefHat },
-            { step: 5, label: 'กำลังส่ง', icon: Bike },
-            { step: 6, label: 'สำเร็จ', icon: CheckCircle2 },
-          ].map((s, idx) => {
-            const isCompleted = statusInfo.step >= s.step;
-            const isCurrent = statusInfo.step === s.step || (s.step === 5 && statusInfo.step === 4);
-
-            return (
-              <div key={idx} className="flex flex-col items-center relative z-10 flex-1">
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                    isCompleted
-                      ? 'bg-[#06C755] text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-400 border border-slate-200'
-                  } ${isCurrent ? 'ring-4 ring-emerald-100 scale-110' : ''}`}
-                >
-                  <s.icon className="w-4 h-4" />
-                </div>
-                <span
-                  className={`text-[10px] mt-1.5 font-medium text-center ${
-                    isCompleted ? 'text-slate-900 font-semibold' : 'text-slate-400'
-                  }`}
-                >
-                  {s.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <OrderProgressStepper currentStatus={currentStatus} orderType={order.orderType} />
 
       <div className="px-3.5 space-y-3">
-        {/* 4. Simulated Rider Card (When Order is Ready or Out for Delivery) */}
-        {isOutForDelivery && (
-          <div className="bg-white rounded-2xl p-4 border border-emerald-100 shadow-sm relative overflow-hidden">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-full bg-[#06C755]/10 border-2 border-[#06C755] flex items-center justify-center text-[#06C755]">
-                    <Bike className="w-6 h-6" />
-                  </div>
-                  <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-[#06C755] border-2 border-white flex items-center justify-center text-[9px] text-white font-bold">
-                    ✓
-                  </span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-sm text-slate-900">
-                      {deliveryStaff ? `คนขับ: ${deliveryStaff.name}` : 'ร้านกำลังมอบหมายคนขับ'}
-                    </h3>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {deliveryStaff ? (deliveryVehicle || 'ยังไม่ได้ระบุข้อมูลรถ') : 'จะแจ้งข้อมูลคนขับเมื่อร้านมอบหมายงานแล้ว'}
-                  </p>
-                </div>
-              </div>
-            </div>
+        <RiderInfoCard rider={deliveryStaff} isVisible={isOutForDelivery} />
 
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
-              {deliveryStaff?.phone ? <a
-                href={`tel:${deliveryStaff.phone}`}
-                className="flex items-center justify-center gap-2 py-2 bg-emerald-50 hover:bg-emerald-100 text-[#06C755] font-semibold text-xs rounded-xl transition-colors btn-tactile"
-              >
-                <Phone className="w-3.5 h-3.5" />
-                โทร {deliveryStaff.phone}
-              </a> : <div className="flex items-center justify-center gap-2 py-2 bg-slate-100 text-slate-400 font-semibold text-xs rounded-xl">รอข้อมูลเบอร์คนขับ</div>}
-              <button
-                onClick={() => notify(deliveryStaff ? `ติดต่อร้านเพื่อส่งข้อความถึง ${deliveryStaff.name}` : 'ร้านกำลังมอบหมายคนขับ', 'info')}
-                className="flex items-center justify-center gap-2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-colors btn-tactile"
-              >
-                <MessageCircle className="w-3.5 h-3.5" />
-                ส่งข้อความ
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 5. PromptPay QR Code & Slip Upload Card */}
         {canUploadSlip && (
-          <div className="bg-white rounded-2xl p-4 border border-amber-200/80 shadow-sm">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-blue-700 text-white flex items-center justify-center font-bold text-xs">
-                  TH
-                </div>
-                <div>
-                  <h3 className="font-bold text-sm text-slate-900">Thai QR Payment / พร้อมเพย์</h3>
-                  <p className="text-[11px] text-slate-500">สแกนชำระผ่าน Mobile Banking ทุกธนาคาร</p>
-                </div>
-              </div>
-              <span className="text-xs font-bold text-[#06C755] bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">
-                ฟรีค่าธรรมเนียม
-              </span>
-            </div>
-
-            {isPaymentFailed && (
-              <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <div>
-                    <p className="font-black">ตรวจสลิปครั้งล่าสุดไม่สำเร็จ</p>
-                    <p className="mt-0.5 leading-relaxed">{paymentFailureReason || 'กรุณาตรวจสอบยอดเงินและส่งสลิปอีกครั้ง'}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* QR Code Container */}
-            <div className="flex flex-col items-center py-4">
-              <div className="p-3 bg-white border-2 border-slate-900 rounded-2xl shadow-sm mb-3 relative flex justify-center items-center w-52 h-52">
-                {qrData?.payload ? (
-                  <QRCodeSVG
-                    value={qrData.payload}
-                    size={176}
-                    level="M"
-                    includeMargin={false}
-                  />
-                ) : isQrError ? (
-                  <div className="px-4 flex flex-col items-center justify-center text-center text-rose-600 gap-2">
-                    <AlertCircle className="w-6 h-6" />
-                    <span className="text-xs font-semibold">
-                      {qrError instanceof Error ? qrError.message : 'ไม่สามารถสร้าง QR Code ได้'}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => refetchQr()}
-                      className="text-[11px] font-bold text-[#06C755] hover:text-[#05A848]"
-                    >
-                      ลองใหม่
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center text-slate-400 gap-2">
-                    <Loader2 className="w-6 h-6 animate-spin text-slate-300" />
-                    <span className="text-xs">กำลังสร้าง QR Code...</span>
-                  </div>
-                )}
-                <div className="absolute inset-x-0 bottom-2 text-center pointer-events-none">
-                  <span className="text-[9px] bg-slate-900/90 text-white px-2 py-0.5 rounded-full font-mono">
-                    PromptPay Official
-                  </span>
-                </div>
-              </div>
-
-              <div className="text-center mb-4">
-                <span className="text-xs text-slate-500 block mb-0.5">ยอดชำระสุทธิ</span>
-                <span className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                  {formatPrice(order.total ?? order.totalAmount ?? 0)}
-                </span>
-              </div>
-
-              {/* Slip Upload Box */}
-              <div className="w-full bg-slate-50 border-2 border-dashed border-slate-300 hover:border-[#06C755] rounded-xl p-4 transition-colors">
-                <input
-                  type="file"
-                  id="slip-input"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-
-                {previewUrl ? (
-                  <div className="flex flex-col items-center gap-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={previewUrl}
-                      alt="Slip preview"
-                      className="w-32 h-44 object-cover rounded-lg border border-slate-200 shadow-xs"
-                    />
-                    <div className="flex gap-2 w-full">
-                      <label
-                        htmlFor="slip-input"
-                        className="flex-1 text-center py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg cursor-pointer transition-colors"
-                      >
-                        เปลี่ยนรูป
-                      </label>
-                      <button
-                        onClick={() => selectedFile && uploadSlipMutation.mutate(selectedFile)}
-                        disabled={uploadSlipMutation.isPending}
-                        className="flex-2 flex items-center justify-center gap-1.5 py-2 bg-[#06C755] hover:bg-[#05A848] text-white text-xs font-bold rounded-lg shadow-sm transition-colors btn-tactile disabled:opacity-50"
-                      >
-                        {uploadSlipMutation.isPending ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Upload className="w-3.5 h-3.5" />
-                        )}
-                        ยืนยันและส่งสลิป
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <label
-                    htmlFor="slip-input"
-                    className="flex flex-col items-center justify-center cursor-pointer py-2"
-                  >
-                    <div className="w-10 h-10 rounded-full bg-emerald-50 text-[#06C755] flex items-center justify-center mb-2">
-                      <Upload className="w-5 h-5" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-800">
-                      แนบหลักฐานการโอนเงิน (สลิป)
-                    </span>
-                    <span className="text-[11px] text-slate-500 mt-0.5">
-                      ระบบตรวจสลิปอัตโนมัติ 24 ชม. ด้วย AI Slip2Go
-                    </span>
-                  </label>
-                )}
-
-                {uploadMsg && (
-                  <div
-                    className={`mt-2.5 p-2 rounded-lg text-xs flex items-center gap-1.5 ${
-                      uploadMsg.isError
-                        ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    }`}
-                  >
-                    {uploadMsg.isError ? (
-                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    ) : (
-                      <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                    )}
-                    <span>{uploadMsg.text}</span>
-                  </div>
-                )}
-              </div>
-
-              {canSimulatePayment && (
-                <button
-                  type="button"
-                  onClick={() => simulatePaymentMutation.mutate()}
-                  disabled={simulatePaymentMutation.isPending}
-                  className="mt-3 w-full py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
-                >
-                  {simulatePaymentMutation.isPending ? 'กำลังยืนยันเดโม...' : 'ยืนยันชำระเงินเดโม (เฉพาะ Development)'}
-                </button>
-              )}
-            </div>
-          </div>
+          <PromptPayQrCard
+            order={order}
+            qrData={qrData}
+            isQrError={isQrError}
+            qrError={qrError}
+            refetchQr={refetchQr}
+            isPaymentFailed={isPaymentFailed}
+            paymentFailureReason={paymentFailureReason}
+            canSimulatePayment={canSimulatePayment}
+            onUploadSlip={(file) => uploadSlipMutation.mutate(file)}
+            onSimulatePayment={() => simulatePaymentMutation.mutate()}
+            isUploading={uploadSlipMutation.isPending}
+            isSimulating={simulatePaymentMutation.isPending}
+            selectedFile={selectedFile}
+            previewUrl={previewUrl}
+            uploadMsg={uploadMsg}
+            onFileChange={handleFileChange}
+          />
         )}
 
-        {/* 6. Delivery Address & Store Details Card */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3.5">
-          {/* Restaurant Section */}
-          <div className="flex items-start gap-3 pb-3 border-b border-slate-100">
-            <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Store className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-sm text-slate-900 truncate">
-                {order.branch?.name || 'ร้านอาหารหลัก (สาขาใหญ่)'}
-              </h3>
-              <p className="text-xs text-slate-500 truncate mt-0.5">
-                {order.branch?.address || 'กรุงเทพมหานคร'}
-              </p>
-            </div>
-          </div>
+        <OrderLocationCard
+          branch={order.branch}
+          customerAddress={order.deliveryAddress}
+          customerPhone={order.customerPhone}
+          orderType={order.orderType}
+        />
 
-          {/* Delivery Location Section */}
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-[#06C755] flex items-center justify-center flex-shrink-0 mt-0.5">
-              <MapPin className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-800">ที่อยู่จัดส่งของคุณ</span>
-                <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded">
-                  {order.orderType === 'DELIVERY' ? 'ส่งถึงที่' : 'รับที่ร้าน'}
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                {order.deliveryAddress || 'จัดส่งตามที่อยู่ที่ระบุในระบบ'}
-              </p>
-              {order.customerPhone && (
-                <p className="text-[11px] text-slate-500 mt-1">
-                  เบอร์โทร: <span className="font-mono text-slate-700">{order.customerPhone}</span>
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
+        <OrderReceiptSummary
+          items={order.items}
+          subtotal={order.subtotal ?? order.total ?? order.totalAmount ?? 0}
+          deliveryFee={order.deliveryFee}
+          discount={order.discount ?? order.discountAmount ?? 0}
+          total={order.total ?? order.totalAmount ?? 0}
+        />
 
-        {/* 7. Itemized Receipt Breakdown (Grab / LINE MAN style) */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <Receipt className="w-4 h-4 text-slate-600" />
-              <h3 className="font-bold text-sm text-slate-900">รายการอาหารที่สั่ง</h3>
-            </div>
-            <span className="text-xs text-slate-500 font-medium">
-              {order.items?.length || 0} รายการ
-            </span>
-          </div>
-
-          <div className="divide-y divide-slate-100 py-1">
-            {order.items?.map((item: any, idx: number) => (
-              <div key={idx} className="py-2.5 flex items-start justify-between gap-3">
-                <div className="flex items-start gap-2.5 flex-1">
-                  <span className="w-5 h-5 rounded bg-emerald-50 text-[#06C755] font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
-                    {item.quantity}x
-                  </span>
-                  <div>
-                    <h4 className="text-xs font-semibold text-slate-900">
-                      {item.productName || item.menuItem?.name || item.name || 'รายการอาหาร'}
-                    </h4>
-                    {(item.variantName || item.modifiers?.length > 0) && (
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        {[item.variantName, ...(item.modifiers || []).map((modifier: any) => modifier.modifierName)]
-                          .filter(Boolean)
-                          .join(', ')}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <span className="text-xs font-bold text-slate-900">
-                  {formatPrice(Number(item.subtotal ?? Number(item.unitPrice || 0) * Number(item.quantity || 1)))}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Pricing Summary */}
-          <div className="pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-600">
-            <div className="flex justify-between">
-              <span>ยอดรวมค่าอาหาร</span>
-              <span>{formatPrice(order.subtotal ?? order.total ?? order.totalAmount ?? 0)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>ค่าจัดส่ง</span>
-              <span className="text-[#06C755] font-semibold">
-                {order.deliveryFee ? formatPrice(order.deliveryFee) : '฿0 (โปรโมชั่นฟรี)'}
-              </span>
-            </div>
-            {Number(order.discount ?? order.discountAmount ?? 0) > 0 && (
-              <div className="flex justify-between text-rose-600">
-                <span>ส่วนลดโปรโมชั่น</span>
-                <span>-{formatPrice(order.discount ?? order.discountAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between items-center pt-2.5 border-t border-slate-200 text-sm font-extrabold text-slate-900">
-              <span>ยอดชำระทั้งหมด</span>
-              <span className="text-base text-[#06C755]">
-                {formatPrice(order.total ?? order.totalAmount ?? 0)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* 8. Help & Security Footer Banner */}
         <div className="flex items-center justify-center gap-2 py-3 text-slate-400 text-[11px]">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
           <span>ระบบสั่งอาหารปลอดภัย ได้รับการคุ้มครองตามมาตรฐาน</span>
         </div>
       </div>
 
-      {/* 9. Fixed Bottom Floating Action Bar */}
       <div className="fixed bottom-0 inset-x-0 max-w-[480px] mx-auto bg-white/95 backdrop-blur-md border-t border-slate-200/80 p-3.5 shadow-lg z-40 flex gap-2">
+        {['PENDING_PAYMENT', 'PAYMENT_VERIFYING', 'PAID', 'CONFIRMED'].includes(currentStatus) && (
+          <button
+            onClick={handleCancelOrder}
+            disabled={cancelOrderMutation.isPending}
+            className="flex-1 py-3 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 font-bold text-xs rounded-xl transition-colors btn-tactile flex items-center justify-center gap-1.5 disabled:opacity-50"
+          >
+            <XCircle className="w-4 h-4" />
+            ยกเลิกคำสั่งซื้อ
+          </button>
+        )}
         <button
           onClick={() => router.push('/menu')}
           className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition-colors btn-tactile flex items-center justify-center gap-1.5"

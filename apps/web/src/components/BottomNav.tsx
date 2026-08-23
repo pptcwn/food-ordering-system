@@ -36,7 +36,7 @@ export default function BottomNav() {
           onClick={() => router.push('/menu')}
           className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all btn-tactile ${
             pathname === '/menu' || pathname === '/'
-              ? 'text-[#00A86B]'
+              ? 'text-[#1F5D45]'
               : 'text-slate-400 hover:text-slate-600'
           }`}
         >
@@ -49,7 +49,7 @@ export default function BottomNav() {
           onClick={() => router.push('/menu')}
           className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all btn-tactile ${
             pathname === '/categories'
-              ? 'text-[#00A86B]'
+              ? 'text-[#1F5D45]'
               : 'text-slate-400 hover:text-slate-600'
           }`}
         >
@@ -77,7 +77,7 @@ export default function BottomNav() {
           onClick={() => router.push('/orders')}
           className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all btn-tactile ${
             pathname?.startsWith('/orders')
-              ? 'text-[#00A86B]'
+              ? 'text-[#1F5D45]'
               : 'text-slate-400 hover:text-slate-600'
           }`}
         >
@@ -90,7 +90,7 @@ export default function BottomNav() {
           onClick={() => router.push('/onboarding')}
           className={`flex flex-col items-center gap-1 flex-1 py-1 transition-all btn-tactile ${
             pathname === '/onboarding'
-              ? 'text-[#00A86B]'
+              ? 'text-[#1F5D45]'
               : 'text-slate-400 hover:text-slate-600'
           }`}
         >

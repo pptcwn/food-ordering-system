@@ -1,0 +1,22 @@
+{
+  "name": "Food Ordering System",
+  "short_name": "FoodOrder",
+  "description": "LINE Food Ordering Platform - สั่งอาหารออนไลน์",
+  "start_url": "/menu",
+  "display": "standalone",
+  "background_color": "#FAF8F5",
+  "theme_color": "#1F5D45",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

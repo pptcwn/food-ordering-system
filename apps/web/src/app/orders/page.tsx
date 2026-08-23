@@ -18,6 +18,7 @@ import {
   Utensils,
   Sparkles,
 } from 'lucide-react';
+import { SkeletonList } from '@/components/ui/skeleton';
 
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
   PENDING_PAYMENT: { label: 'รอชำระเงิน', color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
@@ -142,10 +143,7 @@ export default function CustomerOrdersHistoryPage() {
       {/* 3. Orders List */}
       <div className="p-3.5 space-y-3">
         {isLoading ? (
-          <div className="py-20 flex flex-col items-center justify-center">
-            <Loader2 className="w-7 h-7 text-[#06C755] animate-spin mb-3" />
-            <p className="text-xs text-slate-500">กำลังโหลดรายการคำสั่งซื้อ...</p>
-          </div>
+          <SkeletonList count={3} />
         ) : displayedOrders.length === 0 ? (
           <div className="py-16 px-4 bg-white rounded-2xl border border-slate-200/80 text-center shadow-xs">
             <div className="w-16 h-16 rounded-full bg-emerald-50 text-[#06C755] flex items-center justify-center mx-auto mb-3">

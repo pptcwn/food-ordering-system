@@ -11,9 +11,14 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
     
-    /* Fresh Mint-Emerald Green (from Reference UI Design) */
+    /* Fresh Mint-Emerald Green (from Reference UI Design)
+       Used for vibrant interactive backgrounds, badges, and borders */
     --primary: 158 100% 33%;
     --primary-foreground: 0 0% 100%;
+
+    /* WCAG AA Compliant Dark Green for text on white/light backgrounds (>= 4.5:1 contrast ratio)
+       Used for typography, small text labels, and accessible links */
+    --primary-text: 158 100% 20%;
     
     /* Warm Orange / Amber for Flash Deals & Discounts */
     --secondary: 27 96% 54%;
@@ -22,7 +27,7 @@
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
     --accent: 158 50% 96%;
-    --accent-foreground: 158 100% 25%;
+    --accent-foreground: 158 100% 20%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 214.3 31.8% 91.4%;

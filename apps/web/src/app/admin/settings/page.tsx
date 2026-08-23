@@ -189,10 +189,7 @@ export default function AdminSettingsPage() {
     <div className="min-h-screen bg-[#F7F8F5] p-4 pb-24 md:p-6">
       <div className="mx-auto max-w-4xl space-y-5">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D9E4DC] pb-4">
-          <div className="flex items-center gap-3">
-            <button onClick={() => router.push('/admin')} className="rounded-full border border-slate-200 bg-white p-2 text-slate-700 hover:bg-slate-100 btn-tactile" aria-label="กลับไปหน้าภาพรวม"><ArrowLeft className="w-5 h-5" /></button>
-            <div><h1 className="text-xl font-black tracking-tight text-slate-900">การตั้งค่าร้าน</h1><p className="text-xs text-slate-500">จัดการข้อมูลที่ลูกค้าเห็นและรูปแบบหน้าร้าน</p></div>
-          </div>
+          <div><h1 className="text-xl font-black tracking-tight text-slate-900">การตั้งค่าร้าน</h1><p className="text-xs text-slate-500">จัดการข้อมูลที่ลูกค้าเห็นและรูปแบบหน้าร้าน</p></div>
           <div className="flex items-center gap-2 rounded-xl border border-[#D9E4DC] bg-white px-3 py-2 text-xs font-bold text-[#1F5D45]"><Settings2 className="w-4 h-4" />ตั้งค่าร้าน</div>
         </header>
 

@@ -65,6 +65,16 @@ export class OrdersController {
     return this.ordersService.getOrderById(id, userId);
   }
 
+  @Patch(':id/cancel')
+  @ApiOperation({ summary: 'Customer cancels their own order (before PREPARING)' })
+  async cancelOrder(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Body('reason') reason?: string,
+  ) {
+    return this.ordersService.cancelOrderByCustomer(id, userId, reason);
+  }
+
   @Get('admin/all')
   @ApiBearerAuth('JWT-auth')
   @UseGuards(RolesGuard)

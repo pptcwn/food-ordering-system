@@ -23,10 +23,43 @@ import {
   Settings,
   ReceiptText,
 } from 'lucide-react';
+import { SkeletonCard } from '@/components/ui/skeleton';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+  const [dateRange, setDateRange] = useState<'today' | '7d' | '30d' | 'month' | 'custom'>('7d');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+
+  // Compute startDate and endDate from preset
+  const { queryStartDate, queryEndDate } = React.useMemo(() => {
+    const now = new Date();
+    if (dateRange === 'today') {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      return { queryStartDate: start.toISOString(), queryEndDate: end.toISOString() };
+    }
+    if (dateRange === '7d') {
+      const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return { queryStartDate: start.toISOString(), queryEndDate: now.toISOString() };
+    }
+    if (dateRange === '30d') {
+      const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      return { queryStartDate: start.toISOString(), queryEndDate: now.toISOString() };
+    }
+    if (dateRange === 'month') {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      return { queryStartDate: start.toISOString(), queryEndDate: end.toISOString() };
+    }
+    if (dateRange === 'custom') {
+      const start = startDate ? new Date(`${startDate}T00:00:00`).toISOString() : undefined;
+      const end = endDate ? new Date(`${endDate}T23:59:59.999`).toISOString() : undefined;
+      return { queryStartDate: start, queryEndDate: end };
+    }
+    return { queryStartDate: undefined, queryEndDate: undefined };
+  }, [dateRange, startDate, endDate]);
 
   // Fetch Branches
   const { data: branches = [] } = useQuery<any[]>({
@@ -36,9 +69,15 @@ export default function AdminDashboardPage() {
 
   // Fetch Sales Summary Report
   const { data: report, isLoading: isReportLoading } = useQuery<any>({
-    queryKey: ['admin-sales-report', selectedBranchId],
+    queryKey: ['admin-sales-report', selectedBranchId, queryStartDate, queryEndDate],
     queryFn: () =>
-      apiClient.get(`/admin/reports/sales?branchId=${selectedBranchId || ''}`),
+      apiClient.get('/admin/reports/sales', {
+        params: {
+          branchId: selectedBranchId || undefined,
+          startDate: queryStartDate,
+          endDate: queryEndDate,
+        },
+      }),
     refetchInterval: 10000,
   });
 
@@ -93,7 +132,7 @@ export default function AdminDashboardPage() {
         <div className="flex items-center space-x-2 flex-wrap gap-2">
           {adminUser ? (
             <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs">
-              <div className="w-6 h-6 rounded-full bg-[#EAF8F1] text-[#00A86B] font-black text-[10px] flex items-center justify-center">
+              <div className="w-6 h-6 rounded-full bg-[#EAF8F1] text-[#1F5D45] font-black text-[10px] flex items-center justify-center">
                 A
               </div>
               <span className="text-xs font-bold text-slate-800">{adminUser.name || 'Admin'}</span>
@@ -129,180 +168,117 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Quick Navigation Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-9 gap-3">
-        <button
-          onClick={() => router.push('/admin/menu')}
-          className="p-3.5 bg-white border border-emerald-200 hover:border-[#06C755] rounded-2xl flex items-center justify-between shadow-xs hover:shadow-sm transition text-left"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-[#06C755] flex items-center justify-center">
-              <Utensils className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-900">จัดการเมนู & รูปภาพ</p>
-              <p className="text-[10px] text-slate-400">ตกแต่งหน้าร้าน & แก้ไข</p>
-            </div>
+      {/* Date Range Selector Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-zinc-200 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-semibold mr-1">
+            <Calendar className="w-4 h-4 text-zinc-400" />
+            <span>ช่วงเวลา:</span>
           </div>
-          <ChevronRight className="w-4 h-4 text-slate-400" />
-        </button>
+          {[
+            { id: 'today', label: 'วันนี้' },
+            { id: '7d', label: '7 วัน' },
+            { id: '30d', label: '30 วัน' },
+            { id: 'month', label: 'เดือนนี้' },
+            { id: 'custom', label: 'กำหนดเอง' },
+          ].map((preset) => (
+            <button
+              key={preset.id}
+              onClick={() => setDateRange(preset.id as 'today' | '7d' | '30d' | 'month' | 'custom')}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-xs ${
+                dateRange === preset.id
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
 
-        <button
-          onClick={() => router.push('/admin/promotions')}
-          className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-rose-300 hover:shadow-xs transition text-left"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
-              <Tag className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-900">โปรโมชั่น & คูปอง</p>
-              <p className="text-[10px] text-slate-400">สร้างแคมเปญ & รหัส</p>
-            </div>
+        {dateRange === 'custom' && (
+          <div className="flex items-center gap-2 text-xs">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-zinc-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            <span className="text-zinc-400 font-medium">ถึง</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-zinc-50 border border-slate-200 text-slate-700 text-xs rounded-xl px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
           </div>
-          <ChevronRight className="w-4 h-4 text-slate-400" />
-        </button>
-
-        <button
-          onClick={() => router.push('/admin/payments')}
-          className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-blue-300 hover:shadow-xs transition text-left"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <CreditCard className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-900">การชำระเงิน</p>
-              <p className="text-[10px] text-slate-400">ตรวจสอบสลิป Slip2Go</p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-slate-400" />
-        </button>
-
-        <button
-          onClick={() => router.push('/admin/customers')}
-          className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-amber-300 hover:shadow-xs transition text-left"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-              <Users className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-900">ฐานลูกค้า</p>
-              <p className="text-[10px] text-slate-400">บัญชี LINE & ที่อยู่</p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-slate-400" />
-        </button>
-
-        <button
-          onClick={() => router.push('/kitchen')}
-          className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-purple-300 hover:shadow-xs transition text-left"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-              <Store className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-900">Kitchen KDS</p>
-              <p className="text-[10px] text-slate-400">หน้าจอครัว & ออเดอร์</p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-slate-400" />
-        </button>
-
-        <button
-          onClick={() => router.push('/delivery')}
-          className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-blue-300 hover:shadow-xs transition text-left"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <Bike className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-900">จัดส่ง</p>
-              <p className="text-[10px] text-slate-400">รับงาน & อัปเดตสถานะ</p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-slate-400" />
-        </button>
-
-        <button
-          onClick={() => router.push('/admin/settings')}
-          className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-[#1F5D45] hover:shadow-xs transition text-left"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#EAF3EE] text-[#1F5D45] flex items-center justify-center">
-              <Settings className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-900">การตั้งค่าร้าน</p>
-              <p className="text-[10px] text-slate-400">ชื่อร้าน และหน้าร้าน</p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-slate-400" />
-        </button>
-
-        <button onClick={() => router.push('/admin/expenses')} className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-emerald-300 hover:shadow-xs transition text-left"><div className="flex items-center gap-2.5"><div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center"><ReceiptText className="w-4 h-4" /></div><div><p className="text-xs font-bold text-slate-900">รายจ่าย</p><p className="text-[10px] text-slate-400">สลิป ภาษี และสรุปรายเดือน</p></div></div><ChevronRight className="w-4 h-4 text-slate-400" /></button>
-        <button onClick={() => router.push('/admin/revenue')} className="p-3.5 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:border-emerald-300 hover:shadow-xs transition text-left"><div className="flex items-center gap-2.5"><div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center"><TrendingUp className="w-4 h-4" /></div><div><p className="text-xs font-bold text-slate-900">รายรับ</p><p className="text-[10px] text-slate-400">ระบบ, Grab และ LINE MAN</p></div></div><ChevronRight className="w-4 h-4 text-slate-400" /></button>
+        )}
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-        {/* Total Revenue */}
-        <div className="p-4 bg-white border border-zinc-200/90 rounded-3xl shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">ยอดขายรวม</span>
-            <DollarSign className="w-4 h-4 text-emerald-600" />
-          </div>
-          <p className="text-xl font-black text-zinc-900">
-            {formatPrice(report?.totalRevenue || 0)}
-          </p>
-          <span className="text-[10px] text-zinc-500">
-            ค่าอาหาร {formatPrice(report?.totalFoodRevenue || 0)}
-          </span>
+      {isReportLoading ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+          {[1, 2, 3, 4].map((i) => (
+            <SkeletonCard key={i} className="h-24 rounded-3xl" />
+          ))}
         </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+          {/* Total Revenue */}
+          <div className="p-4 bg-white border border-zinc-200/90 rounded-3xl shadow-sm space-y-1">
+            <div className="flex items-center justify-between text-zinc-400">
+              <span className="text-[11px] font-bold uppercase tracking-wider">ยอดขายรวม</span>
+              <DollarSign className="w-4 h-4 text-emerald-600" />
+            </div>
+            <p className="text-xl font-black text-zinc-900">
+              {formatPrice(report?.totalRevenue || 0)}
+            </p>
+            <span className="text-[10px] text-zinc-500">
+              ค่าอาหาร {formatPrice(report?.totalFoodRevenue || 0)}
+            </span>
+          </div>
 
-        {/* Completed Orders */}
-        <div className="p-4 bg-white border border-zinc-200/90 rounded-3xl shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">ออเดอร์สำเร็จ</span>
-            <ShoppingBag className="w-4 h-4 text-rose-600" />
+          {/* Completed Orders */}
+          <div className="p-4 bg-white border border-zinc-200/90 rounded-3xl shadow-sm space-y-1">
+            <div className="flex items-center justify-between text-zinc-400">
+              <span className="text-[11px] font-bold uppercase tracking-wider">ออเดอร์สำเร็จ</span>
+              <ShoppingBag className="w-4 h-4 text-rose-600" />
+            </div>
+            <p className="text-xl font-black text-zinc-900">
+              {report?.completedOrdersCount || 0}
+            </p>
+            <span className="text-[10px] text-zinc-500">
+              ทั้งหมด {report?.totalOrdersCount || 0} ออเดอร์
+            </span>
           </div>
-          <p className="text-xl font-black text-zinc-900">
-            {report?.completedOrdersCount || 0}
-          </p>
-          <span className="text-[10px] text-zinc-500">
-            ทั้งหมด {report?.totalOrdersCount || 0} ออเดอร์
-          </span>
-        </div>
 
-        {/* Total Delivery Fees */}
-        <div className="p-4 bg-white border border-zinc-200/90 rounded-3xl shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">ค่าจัดส่งรวม</span>
-            <Bike className="w-4 h-4 text-blue-600" />
+          {/* Total Delivery Fees */}
+          <div className="p-4 bg-white border border-zinc-200/90 rounded-3xl shadow-sm space-y-1">
+            <div className="flex items-center justify-between text-zinc-400">
+              <span className="text-[11px] font-bold uppercase tracking-wider">ค่าจัดส่งรวม</span>
+              <Bike className="w-4 h-4 text-blue-600" />
+            </div>
+            <p className="text-xl font-black text-zinc-900">
+              {formatPrice(report?.totalDeliveryFees || 0)}
+            </p>
+            <span className="text-[10px] text-zinc-500">
+              ส่วนลดคูปอง {formatPrice(report?.totalDiscounts || 0)}
+            </span>
           </div>
-          <p className="text-xl font-black text-zinc-900">
-            {formatPrice(report?.totalDeliveryFees || 0)}
-          </p>
-          <span className="text-[10px] text-zinc-500">
-            ส่วนลดคูปอง {formatPrice(report?.totalDiscounts || 0)}
-          </span>
-        </div>
 
-        {/* Cancelled Orders */}
-        <div className="p-4 bg-white border border-zinc-200/90 rounded-3xl shadow-sm space-y-1">
-          <div className="flex items-center justify-between text-zinc-400">
-            <span className="text-[11px] font-bold uppercase tracking-wider">หมดอายุ / ยกเลิก</span>
-            <Package className="w-4 h-4 text-zinc-400" />
+          {/* Cancelled Orders */}
+          <div className="p-4 bg-white border border-zinc-200/90 rounded-3xl shadow-sm space-y-1">
+            <div className="flex items-center justify-between text-zinc-400">
+              <span className="text-[11px] font-bold uppercase tracking-wider">หมดอายุ / ยกเลิก</span>
+              <Package className="w-4 h-4 text-zinc-400" />
+            </div>
+            <p className="text-xl font-black text-zinc-900">
+              {report?.cancelledOrdersCount || 0}
+            </p>
+            <span className="text-[10px] text-zinc-400">ไม่ชำระเงินในเวลา</span>
           </div>
-          <p className="text-xl font-black text-zinc-900">
-            {report?.cancelledOrdersCount || 0}
-          </p>
-          <span className="text-[10px] text-zinc-400">ไม่ชำระเงินในเวลา</span>
         </div>
-      </div>
+      )}
 
       {/* 7-Day Sales Trend Bar Chart */}
       <div className="p-5 bg-white border border-zinc-200 rounded-3xl shadow-sm space-y-4">

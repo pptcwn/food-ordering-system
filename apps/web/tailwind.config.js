@@ -23,6 +23,7 @@ module.exports = {
         foreground: 'hsl(var(--foreground))',
         primary: {
           DEFAULT: '#00A86B', // Fresh Mint-Emerald from design reference
+          text: '#1F5D45', // WCAG AA compliant dark green for text on white/light backgrounds
           hover: '#00925D',
           light: '#EAF8F1',
           dark: '#006842',

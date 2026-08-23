@@ -187,7 +187,7 @@ function CheckoutContent() {
               </span>
               <button
                 onClick={() => router.push('/onboarding')}
-                className="text-xs text-[#00A86B] font-bold hover:underline"
+                className="text-xs text-[#1F5D45] font-bold hover:underline"
               >
                 แก้ไข
               </button>

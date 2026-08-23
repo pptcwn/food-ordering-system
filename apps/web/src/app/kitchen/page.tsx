@@ -24,6 +24,7 @@ import {
   Utensils,
   Check,
 } from 'lucide-react';
+import { KitchenOrderTimer } from '@/components/kitchen/kitchen-order-timer';
 
 export default function KitchenDashboardPage() {
   const router = useRouter();
@@ -104,14 +105,116 @@ export default function KitchenDashboardPage() {
     },
   });
 
-  const activeKitchenOrders = orders.filter(
-    (o: any) =>
-      o.orderStatus === 'PAID' ||
-      o.orderStatus === 'CONFIRMED' ||
-      o.orderStatus === 'PREPARING',
-  );
+  const newOrders = orders.filter((o: any) => o.orderStatus === 'PAID' || o.orderStatus === 'CONFIRMED');
+  const preparingOrders = orders.filter((o: any) => o.orderStatus === 'PREPARING');
+  // Sort ready orders to get the most recent ones first, assuming createdAt is available
+  const readyOrders = orders.filter((o: any) => o.orderStatus === 'READY')
+    .sort((a: any, b: any) => new Date(b.createdAt || b.updatedAt).getTime() - new Date(a.createdAt || a.updatedAt).getTime())
+    .slice(0, 5);
 
-  const readyOrders = orders.filter((o: any) => o.orderStatus === 'READY');
+  const renderOrderCard = (order: any, isPreparing: boolean = false, isReady: boolean = false) => {
+    return (
+      <div
+        key={order.id}
+        className={`bg-slate-800 rounded-2xl border flex flex-col justify-between overflow-hidden shadow-lg transition-all ${
+          isReady ? 'opacity-70 scale-95 border-blue-500/30' :
+          isPreparing ? 'border-emerald-500/60 ring-2 ring-emerald-500/20' : 'border-amber-500/60'
+        }`}
+      >
+        {/* Card Header */}
+        <div
+          className={`p-3.5 flex items-center justify-between text-white ${
+            isReady ? 'bg-blue-600/80' :
+            isPreparing ? 'bg-emerald-600' : 'bg-amber-600'
+          }`}
+        >
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-black tracking-wider uppercase">
+                #{order.orderNo || order.id.slice(0, 6)}
+              </span>
+              <KitchenOrderTimer createdAt={order.createdAt || new Date()} />
+            </div>
+            <p className="text-xs font-bold mt-0.5">
+              {order.customerName} ({order.orderType === 'DELIVERY' ? '🛵 จัดส่ง' : '🏪 รับที่ร้าน'})
+            </p>
+          </div>
+          <span className="text-[11px] font-extrabold bg-black/30 backdrop-blur-xs px-2.5 py-1 rounded-full whitespace-nowrap">
+            {isReady ? 'พร้อมส่ง ✅' : isPreparing ? 'กำลังปรุง 🍳' : 'ออเดอร์ใหม่ ⚡'}
+          </span>
+        </div>
+
+        {/* Items List */}
+        <div className="p-4 space-y-2.5 flex-1 divide-y divide-slate-700/60">
+          {order.items?.map((item: any, idx: number) => (
+            <div key={idx} className="pt-2 first:pt-0 flex items-start justify-between gap-2">
+              <div className="flex items-start gap-2">
+                <span className="w-6 h-6 rounded bg-slate-700 text-amber-300 font-extrabold text-xs flex items-center justify-center flex-shrink-0">
+                  {item.quantity}x
+                </span>
+                <div>
+                  <h4 className="text-sm font-bold text-white">
+                    {item.productName || item.menuItem?.name || item.name || 'รายการอาหาร'}
+                  </h4>
+                  {(item.variantName || item.modifiers?.length > 0) && (
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      {[item.variantName, ...(item.modifiers || []).map((modifier: any) => modifier.modifierName)]
+                        .filter(Boolean)
+                        .join(', ')}
+                    </p>
+                  )}
+                  {item.specialNote && (
+                    <p className="text-xs text-amber-300 font-bold bg-amber-500/20 px-2 py-0.5 rounded mt-1">
+                      ⚠️ โน้ต: {item.specialNote}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {order.note && (
+            <div className="pt-2 mt-2 bg-slate-900/50 p-2.5 rounded-xl border border-slate-700">
+              <span className="text-[10px] text-slate-400 block font-bold">หมายเหตุทั้งออเดอร์:</span>
+              <p className="text-xs text-amber-200">{order.note}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Card Action Footer */}
+        {!isReady && (
+          <div className="p-3 bg-slate-900/80 border-t border-slate-700/80 flex gap-2">
+            {!isPreparing ? (
+              <button
+                onClick={() =>
+                  updateStatusMutation.mutate({
+                    orderId: order.id,
+                    status: OrderStatus.PREPARING,
+                  })
+                }
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md transition-colors btn-tactile flex items-center justify-center gap-1.5"
+              >
+                <span>รับเข้าครัว (เริ่มปรุง)</span>
+              </button>
+            ) : (
+              <button
+                onClick={() =>
+                  updateStatusMutation.mutate({
+                    orderId: order.id,
+                    status: OrderStatus.READY,
+                  })
+                }
+                className="w-full py-3 bg-[#06C755] hover:bg-[#05A848] text-white font-extrabold text-xs rounded-xl shadow-md transition-colors btn-tactile flex items-center justify-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                <span>ปรุงเสร็จแล้ว (พร้อมส่ง)</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="flex-1 flex flex-col p-4 md:p-6 pb-20 bg-slate-900 text-slate-100 min-h-screen">
@@ -175,119 +278,56 @@ export default function KitchenDashboardPage() {
         </div>
       </div>
 
-      {/* 2. Live Order Columns */}
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* 2. Live Order Columns (3-Column Kanban) */}
+      <div className="mt-4 flex gap-4 md:gap-6 overflow-x-auto pb-4 items-start">
         {isLoading ? (
-          <div className="col-span-full py-24 text-center text-slate-400">
+          <div className="w-full py-24 text-center text-slate-400">
             กำลังโหลดคิวทำอาหาร...
           </div>
-        ) : activeKitchenOrders.length === 0 ? (
-          <div className="col-span-full py-24 text-center bg-slate-800/40 border border-slate-800 rounded-3xl p-8">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto mb-3">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
-            <h3 className="text-base font-bold text-white mb-1">ยังไม่มีออเดอร์ในคิว</h3>
-            <p className="text-xs text-slate-400">เมื่อมีลูกค้าสั่งอาหารและชำระเงิน รายการจะเด้งเข้าหน้านี้ทันที</p>
-          </div>
         ) : (
-          activeKitchenOrders.map((order: any) => {
-            const isPreparing = order.orderStatus === 'PREPARING';
-
-            return (
-              <div
-                key={order.id}
-                className={`bg-slate-800 rounded-2xl border flex flex-col justify-between overflow-hidden shadow-lg transition-all ${
-                  isPreparing ? 'border-emerald-500/60 ring-2 ring-emerald-500/20' : 'border-amber-500/60'
-                }`}
-              >
-                {/* Card Header */}
-                <div
-                  className={`p-3.5 flex items-center justify-between text-white ${
-                    isPreparing ? 'bg-emerald-600' : 'bg-amber-600'
-                  }`}
-                >
-                  <div>
-                    <span className="text-xs font-mono font-black tracking-wider uppercase">
-                      #{order.orderNo || order.id.slice(0, 6)}
-                    </span>
-                    <p className="text-xs font-bold mt-0.5">
-                      {order.customerName} ({order.orderType === 'DELIVERY' ? '🛵 จัดส่ง' : '🏪 รับที่ร้าน'})
-                    </p>
-                  </div>
-                  <span className="text-[11px] font-extrabold bg-black/30 backdrop-blur-xs px-2.5 py-1 rounded-full">
-                    {isPreparing ? 'กำลังปรุงอาหาร 🍳' : 'ออเดอร์ใหม่ ⚡'}
-                  </span>
-                </div>
-
-                {/* Items List */}
-                <div className="p-4 space-y-2.5 flex-1 divide-y divide-slate-700/60">
-                  {order.items?.map((item: any, idx: number) => (
-                    <div key={idx} className="pt-2 first:pt-0 flex items-start justify-between gap-2">
-                      <div className="flex items-start gap-2">
-                        <span className="w-6 h-6 rounded bg-slate-700 text-amber-300 font-extrabold text-xs flex items-center justify-center flex-shrink-0">
-                          {item.quantity}x
-                        </span>
-                        <div>
-                          <h4 className="text-sm font-bold text-white">
-                            {item.productName || item.menuItem?.name || item.name || 'รายการอาหาร'}
-                          </h4>
-                          {(item.variantName || item.modifiers?.length > 0) && (
-                            <p className="mt-0.5 text-xs text-slate-400">
-                              {[item.variantName, ...(item.modifiers || []).map((modifier: any) => modifier.modifierName)]
-                                .filter(Boolean)
-                                .join(', ')}
-                            </p>
-                          )}
-                          {item.specialNote && (
-                            <p className="text-xs text-amber-300 font-bold bg-amber-500/20 px-2 py-0.5 rounded mt-1">
-                              ⚠️ โน้ต: {item.specialNote}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {order.note && (
-                    <div className="pt-2 mt-2 bg-slate-900/50 p-2.5 rounded-xl border border-slate-700">
-                      <span className="text-[10px] text-slate-400 block font-bold">หมายเหตุทั้งออเดอร์:</span>
-                      <p className="text-xs text-amber-200">{order.note}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Card Action Footer */}
-                <div className="p-3 bg-slate-900/80 border-t border-slate-700/80 flex gap-2">
-                  {!isPreparing ? (
-                    <button
-                      onClick={() =>
-                        updateStatusMutation.mutate({
-                          orderId: order.id,
-                          status: OrderStatus.PREPARING,
-                        })
-                      }
-                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md transition-colors btn-tactile flex items-center justify-center gap-1.5"
-                    >
-                      <span>รับเข้าครัว (เริ่มปรุง)</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() =>
-                        updateStatusMutation.mutate({
-                          orderId: order.id,
-                          status: OrderStatus.READY,
-                        })
-                      }
-                      className="w-full py-3 bg-[#06C755] hover:bg-[#05A848] text-white font-extrabold text-xs rounded-xl shadow-md transition-colors btn-tactile flex items-center justify-center gap-1.5"
-                    >
-                      <Check className="w-4 h-4" />
-                      <span>ปรุงเสร็จแล้ว (พร้อมส่ง)</span>
-                    </button>
-                  )}
-                </div>
+          <>
+            {/* Column 1: New Orders */}
+            <div className="flex-1 min-w-[300px] flex flex-col space-y-4">
+              <h2 className="text-amber-400 font-bold flex items-center gap-2 pb-2 border-b border-amber-500/20 text-sm">
+                ออเดอร์ใหม่ ⚡ <span className="bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full text-xs">{newOrders.length}</span>
+              </h2>
+              <div className="space-y-4">
+                {newOrders.length === 0 ? (
+                  <div className="py-12 text-center text-slate-500 text-xs border border-dashed border-slate-700 rounded-2xl">ไม่มีออเดอร์ใหม่</div>
+                ) : (
+                  newOrders.map((order: any) => renderOrderCard(order, false, false))
+                )}
               </div>
-            );
-          })
+            </div>
+
+            {/* Column 2: Preparing */}
+            <div className="flex-1 min-w-[300px] flex flex-col space-y-4">
+              <h2 className="text-emerald-400 font-bold flex items-center gap-2 pb-2 border-b border-emerald-500/20 text-sm">
+                กำลังปรุง 🍳 <span className="bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full text-xs">{preparingOrders.length}</span>
+              </h2>
+              <div className="space-y-4">
+                {preparingOrders.length === 0 ? (
+                  <div className="py-12 text-center text-slate-500 text-xs border border-dashed border-slate-700 rounded-2xl">ไม่มีออเดอร์ที่กำลังปรุง</div>
+                ) : (
+                  preparingOrders.map((order: any) => renderOrderCard(order, true, false))
+                )}
+              </div>
+            </div>
+
+            {/* Column 3: Ready */}
+            <div className="flex-1 min-w-[300px] flex flex-col space-y-4">
+              <h2 className="text-blue-400 font-bold flex items-center gap-2 pb-2 border-b border-blue-500/20 text-sm">
+                พร้อมส่ง ✅ <span className="bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full text-xs">{readyOrders.length}</span>
+              </h2>
+              <div className="space-y-4">
+                {readyOrders.length === 0 ? (
+                  <div className="py-12 text-center text-slate-500 text-xs border border-dashed border-slate-700 rounded-2xl">ไม่มีออเดอร์พร้อมส่งล่าสุด</div>
+                ) : (
+                  readyOrders.map((order: any) => renderOrderCard(order, false, true))
+                )}
+              </div>
+            </div>
+          </>
         )}
       </div>
 

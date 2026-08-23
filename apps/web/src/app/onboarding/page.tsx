@@ -232,7 +232,7 @@ export default function OnboardingPage() {
                   type="button"
                   onClick={handleGetCurrentLocation}
                   disabled={locating}
-                  className="text-xs text-[#00A86B] font-bold flex items-center gap-1 hover:underline btn-tactile"
+                  className="text-xs text-[#1F5D45] font-bold flex items-center gap-1 hover:underline btn-tactile"
                 >
                   <Navigation className={`w-3.5 h-3.5 ${locating ? 'animate-spin' : ''}`} />
                   <span>{locating ? 'กำลังหาพิกัด...' : 'ใช้พิกัด GPS'}</span>

@@ -8,6 +8,7 @@ import { useAppStore } from '@/lib/store';
 import { formatPrice } from '@/lib/utils';
 import { ProductThumbnail } from '@/components/customer/product-thumbnail';
 import { useFeedback } from '@/components/ui/feedback-provider';
+import { SkeletonList } from '@/components/ui/skeleton';
 import {
   ArrowLeft,
   Trash2,
@@ -36,12 +37,52 @@ export default function CartPage() {
   const updateItemMutation = useMutation({
     mutationFn: ({ itemId, quantity }: { itemId: string; quantity: number }) =>
       apiClient.patch(`/cart/items/${itemId}`, { quantity }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cart'] }),
+    onMutate: async ({ itemId, quantity }) => {
+      await queryClient.cancelQueries({ queryKey: ['cart'] });
+      const previousCart = queryClient.getQueryData(['cart']);
+      queryClient.setQueryData(['cart'], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          items: old.items.map((item: any) =>
+            item.id === itemId ? { ...item, quantity } : item
+          ),
+        };
+      });
+      return { previousCart };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousCart) {
+        queryClient.setQueryData(['cart'], context.previousCart);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+    }
   });
 
   const removeItemMutation = useMutation({
     mutationFn: (itemId: string) => apiClient.delete(`/cart/items/${itemId}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cart'] }),
+    onMutate: async (itemId) => {
+      await queryClient.cancelQueries({ queryKey: ['cart'] });
+      const previousCart = queryClient.getQueryData(['cart']);
+      queryClient.setQueryData(['cart'], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          items: old.items.filter((item: any) => item.id !== itemId),
+        };
+      });
+      return { previousCart };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousCart) {
+        queryClient.setQueryData(['cart'], context.previousCart);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+    }
   });
 
   const clearCartMutation = useMutation({
@@ -78,8 +119,15 @@ export default function CartPage() {
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8 min-h-[70vh]">
-        <div className="w-8 h-8 border-3 border-[#00A86B] border-t-transparent rounded-full animate-spin" />
+      <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-1 flex-col bg-[#FAF8F5]">
+        <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md px-5 py-3.5 flex items-center justify-between border-b border-slate-100 shadow-xs">
+           <div className="w-9 h-9 rounded-full bg-slate-100" />
+           <div className="h-4 w-24 bg-slate-200 rounded animate-pulse" />
+           <div className="w-16" />
+        </header>
+        <div className="p-4 space-y-4">
+          <SkeletonList count={3} />
+        </div>
       </div>
     );
   }
@@ -121,7 +169,7 @@ export default function CartPage() {
           </div>
           <button
             onClick={() => clearCartMutation.mutate()}
-            className="text-xs font-bold text-[#00A86B] hover:underline"
+            className="text-xs font-bold text-[#1F5D45] hover:underline"
           >
             ล้างทั้งหมด
           </button>
@@ -227,7 +275,7 @@ export default function CartPage() {
             <button
               onClick={() => validateCouponMutation.mutate()}
               disabled={!promoCode.trim() || validateCouponMutation.isPending}
-              className="text-xs font-black text-[#00A86B] hover:underline px-2 py-1 flex-shrink-0 disabled:opacity-50"
+              className="text-xs font-black text-[#1F5D45] hover:underline px-2 py-1 flex-shrink-0 disabled:opacity-50"
             >
               {validateCouponMutation.isPending ? 'กำลังตรวจ...' : appliedCoupon ? '✓ ใช้แล้ว' : 'ใช้โค้ด'}
             </button>
@@ -241,7 +289,7 @@ export default function CartPage() {
             </div>
             <div className="flex justify-between">
               <span>ค่าจัดส่ง</span>
-              <span className="font-bold text-[#00A86B]">ฟรีโปรโมชั่น</span>
+              <span className="font-bold text-[#1F5D45]">ฟรีโปรโมชั่น</span>
             </div>
             {appliedCoupon && (
               <div className="flex justify-between text-rose-500 font-bold">
@@ -251,7 +299,7 @@ export default function CartPage() {
             )}
             <div className="border-t border-slate-100 pt-2.5 flex justify-between items-center text-sm font-black text-slate-900">
               <span>ยอดชำระสุทธิ</span>
-              <span className="text-base text-[#00A86B] font-black">
+              <span className="text-base text-[#1F5D45] font-black">
                 {formatPrice(grandTotal)}
               </span>
             </div>

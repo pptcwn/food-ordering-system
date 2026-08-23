@@ -167,7 +167,7 @@ export default function AdminLoginPage() {
             type="button"
             onClick={handleQuickDemoLogin}
             disabled={loginMutation.isPending}
-            className="w-full py-3 bg-emerald-50 hover:bg-emerald-100 text-[#00A86B] font-bold text-xs rounded-2xl border border-emerald-200/80 flex items-center justify-center gap-2 transition-all btn-tactile"
+            className="w-full py-3 bg-emerald-50 hover:bg-emerald-100 text-[#1F5D45] font-bold text-xs rounded-2xl border border-emerald-200/80 flex items-center justify-center gap-2 transition-all btn-tactile"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>เข้าสู่ระบบเดโมผู้ดูแล (Development only)</span>
