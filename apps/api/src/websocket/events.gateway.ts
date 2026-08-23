@@ -55,6 +55,20 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @UseGuards(WsJwtGuard)
+  @SubscribeMessage('join_branch_public')
+  handleJoinBranchPublic(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { branchId: string },
+  ) {
+    if (data?.branchId) {
+      client.join(`branch_public_${data.branchId}`);
+      this.logger.log(`Client ${client.id} joined public room: branch_public_${data.branchId}`);
+      return { status: 'joined', room: `branch_public_${data.branchId}` };
+    }
+    return { status: 'denied', reason: 'Invalid branchId' };
+  }
+
+  @UseGuards(WsJwtGuard)
   @SubscribeMessage('join_kitchen')
   handleJoinKitchen(
     @ConnectedSocket() client: Socket,
@@ -97,8 +111,9 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   emitProductAvailabilityChanged(payload: ProductAvailabilityPayload) {
     if (payload.branchId) {
       this.server.to(`branch_${payload.branchId}`).emit(WS_EVENTS.PRODUCT_AVAILABILITY_CHANGED, payload);
+      this.server.to(`branch_public_${payload.branchId}`).emit(WS_EVENTS.PRODUCT_AVAILABILITY_CHANGED, payload);
     }
-    this.logger.log(`📢 Broadcasted ${WS_EVENTS.PRODUCT_AVAILABILITY_CHANGED} to branch_${payload.branchId}`);
+    this.logger.log(`📢 Broadcasted ${WS_EVENTS.PRODUCT_AVAILABILITY_CHANGED} to branch_${payload.branchId} and branch_public_${payload.branchId}`);
   }
 
   emitKitchenNewOrder(branchId: string, orderData: any) {

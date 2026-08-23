@@ -151,7 +151,7 @@ export default function MenuPage() {
     if (!isLiffReady) return;
     const socket = getSocket();
     if (activeBranchId) {
-      socket.emit('join_branch', { branchId: activeBranchId });
+      socket.emit('join_branch_public', { branchId: activeBranchId });
     }
 
     socket.on(WS_EVENTS.PRODUCT_AVAILABILITY_CHANGED, () => {
