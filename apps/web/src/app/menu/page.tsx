@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '@/lib/store';
 import { apiClient } from '@/lib/api';
+import { initLiff } from '@/lib/liff';
 import { getSocket } from '@/lib/socket';
 import { WS_EVENTS } from '@food-ordering/types';
 import { StickyCartBar } from '@/components/customer/sticky-cart-bar';
@@ -38,22 +39,29 @@ export default function MenuPage() {
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isBranchPickerOpen, setIsBranchPickerOpen] = useState(false);
+  const [isLiffReady, setIsLiffReady] = useState(false);
+
+  useEffect(() => {
+    initLiff().finally(() => setIsLiffReady(true));
+  }, []);
 
   // Fetch Menu
   const { data: categories = [], isLoading } = useQuery<any[]>({
     queryKey: ['menu', activeBranchId],
     queryFn: () => apiClient.get(`/menu?branchId=${activeBranchId || ''}`),
+    enabled: isLiffReady,
   });
 
   const { data: branches = [] } = useQuery<any[]>({
     queryKey: ['branches'],
     queryFn: () => apiClient.get('/branches'),
+    enabled: isLiffReady,
   });
 
   const { data: storefrontBranch } = useQuery<any>({
     queryKey: ['branch-storefront', activeBranchId],
     queryFn: () => apiClient.get(`/branches/${activeBranchId}`),
-    enabled: Boolean(activeBranchId),
+    enabled: Boolean(isLiffReady && activeBranchId),
   });
 
   const selectedActiveBranch = branches.find((branch) => branch.id === activeBranchId);
@@ -82,11 +90,13 @@ export default function MenuPage() {
   const { data: cart } = useQuery<any>({
     queryKey: ['cart'],
     queryFn: () => apiClient.get('/cart'),
+    enabled: isLiffReady,
   });
   
   const { data: recentOrders = [] } = useQuery<any[]>({ 
     queryKey: ['my-orders'], 
-    queryFn: () => apiClient.get('/orders/my-orders') 
+    queryFn: () => apiClient.get('/orders/my-orders'),
+    enabled: isLiffReady,
   });
   const quickOrder = getLatestReorderableOrder(recentOrders);
   
@@ -138,6 +148,7 @@ export default function MenuPage() {
 
   // Realtime Sold Out Socket listener
   useEffect(() => {
+    if (!isLiffReady) return;
     const socket = getSocket();
     if (activeBranchId) {
       socket.emit('join_branch', { branchId: activeBranchId });
@@ -151,7 +162,7 @@ export default function MenuPage() {
     return () => {
       socket.off(WS_EVENTS.PRODUCT_AVAILABILITY_CHANGED);
     };
-  }, [activeBranchId, queryClient]);
+  }, [activeBranchId, isLiffReady, queryClient]);
 
   // Set default active category
   useEffect(() => {
