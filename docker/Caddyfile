@@ -3,7 +3,7 @@ xinchao.minstance.cloud {
 
   # Keep object URLs on the same HTTPS origin. This preserves MinIO signatures
   # because the bucket name remains the first path segment.
-  @minio path /food-products/* /food-slips/* /food-receipts/* /food-delivery/* /food-expenses/* /food-revenue-documents/*
+  @minio path /food-products /food-products/* /food-slips /food-slips/* /food-receipts /food-receipts/* /food-delivery /food-delivery/* /food-expenses /food-expenses/* /food-revenue-documents /food-revenue-documents/*
   reverse_proxy @minio minio:9000
 
   @api path /api/* /docs* /socket.io/*
