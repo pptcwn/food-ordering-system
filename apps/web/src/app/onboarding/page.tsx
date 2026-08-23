@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { apiClient } from '@/lib/api';
+import { initLiff } from '@/lib/liff';
 import {
   User,
   Phone,
@@ -113,6 +114,16 @@ export default function OnboardingPage() {
     setCustomerInfo(cleanName, cleanPhone);
     setOrderType(type);
 
+    // This route can be opened directly, before the home page has initialized LIFF.
+    // The customer endpoints require a JWT, so establish the LINE session here as well.
+    if (!localStorage.getItem('access_token')) {
+      await initLiff();
+    }
+    if (!localStorage.getItem('access_token')) {
+      setErrorMsg('ไม่พบการเข้าสู่ระบบ LINE กรุณาเปิดหน้านี้ผ่าน LINE แล้วลองใหม่อีกครั้ง');
+      return;
+    }
+
     if (type === 'DELIVERY') {
       const locData = {
         addressLine: addressLine.trim(),
@@ -126,14 +137,16 @@ export default function OnboardingPage() {
         await apiClient.put('/customers/profile', { name: cleanName, phone: cleanPhone });
         await apiClient.post('/customers/location', locData);
       } catch (err) {
-        setErrorMsg('บันทึกข้อมูลจัดส่งไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+        const message = err instanceof Error ? err.message : '';
+        setErrorMsg(`บันทึกข้อมูลจัดส่งไม่สำเร็จ${message ? `: ${message}` : ' กรุณาลองใหม่อีกครั้ง'}`);
         return;
       }
     } else {
       try {
         await apiClient.put('/customers/profile', { name: cleanName, phone: cleanPhone });
       } catch (err) {
-        setErrorMsg('บันทึกข้อมูลผู้ใช้ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+        const message = err instanceof Error ? err.message : '';
+        setErrorMsg(`บันทึกข้อมูลผู้ใช้ไม่สำเร็จ${message ? `: ${message}` : ' กรุณาลองใหม่อีกครั้ง'}`);
         return;
       }
     }
