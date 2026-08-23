@@ -39,7 +39,7 @@ sudo ufw allow 9000/tcp || true
 sudo ufw allow 9001/tcp || true
 sudo ufw allow 3001/tcp || true
 
-# 3. Create .env if not exists
+# 3. Create .env if not exists and ensure public endpoints use the HTTPS domain.
 if [ ! -f .env ]; then
   echo "📝 3/6 Creating default .env from .env.example..."
   cp .env.example .env
@@ -47,6 +47,23 @@ if [ ! -f .env ]; then
   sed -i "s|NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://34.126.172.168:4000/api|g" .env
   sed -i "s|NEXT_PUBLIC_WS_URL=.*|NEXT_PUBLIC_WS_URL=http://34.126.172.168:4000|g" .env
 fi
+
+set_env_value() {
+  key="$1"
+  value="$2"
+  if grep -q "^${key}=" .env; then
+    sed -i "s|^${key}=.*|${key}=${value}|" .env
+  else
+    printf '%s=%s\n' "$key" "$value" >> .env
+  fi
+}
+
+set_env_value CLIENT_URL https://xinchao.minstance.cloud
+set_env_value NEXT_PUBLIC_API_URL /api
+set_env_value NEXT_PUBLIC_WS_URL https://xinchao.minstance.cloud
+set_env_value MINIO_PUBLIC_PRODUCTS_URL https://xinchao.minstance.cloud
+set_env_value MINIO_PUBLIC_PRESIGNED_URL https://xinchao.minstance.cloud
+set_env_value MINIO_BROWSER_REDIRECT_URL http://34.126.172.168:9001
 
 # 4. Build and Launch Containers sequentially to save RAM & avoid disk locks
 echo "🐳 4/6 Starting Database, Redis, MinIO & Monitoring Stack..."
@@ -71,14 +88,15 @@ docker compose -f docker-compose.prod.yml up -d worker
 sleep 3
 docker compose -f docker-compose.prod.yml build web
 docker compose -f docker-compose.prod.yml up -d web
+docker compose -f docker-compose.prod.yml up -d caddy
 
 docker builder prune -f || true
 
 echo "=========================================================="
 echo "✅ DEPLOYMENT SUCCESSFUL!"
 echo "=========================================================="
-echo "🌐 Frontend (Customer App & Admin): http://34.126.172.168:3000"
-echo "⚙️ Backend API & Docs:              http://34.126.172.168:4000/docs"
-echo "🗄️ MinIO Storage Console:          http://34.126.172.168:9001"
+echo "🌐 Frontend (Customer App & Admin): https://xinchao.minstance.cloud"
+echo "⚙️ Backend API & Docs:              https://xinchao.minstance.cloud/docs"
+echo "🗄️ MinIO Storage Console:          http://127.0.0.1:9001"
 echo "📊 Uptime Kuma Monitoring:          http://34.126.172.168:3001"
 echo "=========================================================="
