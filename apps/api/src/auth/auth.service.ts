@@ -28,7 +28,10 @@ export class AuthService {
         new URLSearchParams({
           id_token: idToken,
           client_id: channelId || '',
-        }).toString(),
+        }),
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        },
       );
 
       const { sub: lineUserId, name: displayName, picture: pictureUrl } = verifyRes.data;
