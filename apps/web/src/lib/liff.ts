@@ -23,6 +23,9 @@ export async function initLiff(liffId?: string): Promise<LineProfile | null> {
       if (authRes?.accessToken) {
         localStorage.setItem('access_token', authRes.accessToken);
       }
+      if (authRes?.refreshToken) {
+        localStorage.setItem('refresh_token', authRes.refreshToken);
+      }
     } catch (error) {
       console.warn('Development demo login unavailable:', error);
     }
@@ -56,6 +59,9 @@ export async function initLiff(liffId?: string): Promise<LineProfile | null> {
           const authRes: any = await apiClient.post('/auth/line', { idToken });
           if (authRes && authRes.accessToken) {
             localStorage.setItem('access_token', authRes.accessToken);
+          }
+          if (authRes?.refreshToken) {
+            localStorage.setItem('refresh_token', authRes.refreshToken);
           }
         } catch (e) {
           console.warn('Line backend sync notice:', e);

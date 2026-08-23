@@ -20,6 +20,48 @@ export const apiClient = axios.create({
   },
 });
 
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+
+  const refreshToken = localStorage.getItem('refresh_token');
+  if (!refreshToken) return null;
+
+  if (!refreshPromise) {
+    refreshPromise = axios
+      .post(`${getApiBaseUrl()}/auth/refresh`, { refreshToken }, {
+        headers: { 'Content-Type': 'application/json' },
+      })
+      .then((response) => {
+        const payload = response.data?.success && response.data?.data !== undefined
+          ? response.data.data
+          : response.data;
+        const nextAccessToken = payload?.accessToken;
+        const nextRefreshToken = payload?.refreshToken;
+        if (!nextAccessToken) {
+          throw new Error('Missing refreshed access token');
+        }
+        localStorage.setItem('access_token', nextAccessToken);
+        if (nextRefreshToken) {
+          localStorage.setItem('refresh_token', nextRefreshToken);
+        }
+        return nextAccessToken as string;
+      })
+      .catch(() => {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('admin_user');
+        return null;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+
+  return refreshPromise;
+}
+
 // Dynamic request interceptor
 apiClient.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
@@ -49,7 +91,32 @@ apiClient.interceptors.response.use(
     }
     return response.data;
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+    const status = error.response?.status;
+    const rawMessage =
+      error.response?.data?.message ||
+      error.response?.data?.error ||
+      error.message ||
+      '';
+    const normalizedMessage = typeof rawMessage === 'string' ? rawMessage : JSON.stringify(rawMessage);
+
+    if (
+      typeof window !== 'undefined' &&
+      originalRequest &&
+      !originalRequest._retry &&
+      !String(originalRequest.url || '').includes('/auth/refresh') &&
+      (status === 401 || /authentication required|unauthorized|jwt expired|invalid or expired refresh token/i.test(normalizedMessage))
+    ) {
+      originalRequest._retry = true;
+      const nextAccessToken = await refreshAccessToken();
+      if (nextAccessToken) {
+        originalRequest.headers = originalRequest.headers || {};
+        originalRequest.headers.Authorization = `Bearer ${nextAccessToken}`;
+        return apiClient(originalRequest);
+      }
+    }
+
     const message =
       error.response?.data?.message ||
       error.response?.data?.error ||
