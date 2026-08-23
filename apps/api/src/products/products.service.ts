@@ -6,6 +6,8 @@ import { CreateProductDtoType as CreateProductDto, UpdateProductDtoType as Updat
 @Injectable()
 export class ProductsService {
   private readonly logger = new Logger(ProductsService.name);
+  private readonly legacyMinioUrl = 'http://34.126.172.168:9000';
+  private readonly publicMinioUrl = process.env.MINIO_PUBLIC_PRODUCTS_URL || this.legacyMinioUrl;
 
   constructor(
     private prisma: PrismaService,
@@ -55,6 +57,7 @@ export class ProductsService {
       ...cat,
       products: cat.products.map((p) => ({
         ...p,
+        imageUrl: this.toPublicImageUrl(p.imageUrl),
         modifierGroups: p.modifierGroups.map((pmg) => pmg.modifierGroup),
       })),
     }));
@@ -94,8 +97,13 @@ export class ProductsService {
 
     return {
       ...product,
+      imageUrl: this.toPublicImageUrl(product.imageUrl),
       modifierGroups: product.modifierGroups.map((pmg) => pmg.modifierGroup),
     };
+  }
+
+  private toPublicImageUrl(imageUrl: string | null) {
+    return imageUrl?.replace(this.legacyMinioUrl, this.publicMinioUrl) ?? imageUrl;
   }
 
   /**

@@ -19,10 +19,13 @@ export interface BranchDistance {
 
 @Injectable()
 export class BranchesService {
+  private readonly legacyMinioUrl = 'http://34.126.172.168:9000';
+  private readonly publicMinioUrl = process.env.MINIO_PUBLIC_PRODUCTS_URL || this.legacyMinioUrl;
+
   constructor(private prisma: PrismaService) {}
 
   async getAllBranches() {
-    return this.prisma.branch.findMany({
+    const branches = await this.prisma.branch.findMany({
       where: { isActive: true },
       select: {
         id: true,
@@ -50,6 +53,7 @@ export class BranchesService {
       },
       orderBy: { name: 'asc' },
     });
+    return branches.map((branch) => this.withPublicStorefrontUrls(branch));
   }
 
   async getBranchById(id: string) {
@@ -85,7 +89,15 @@ export class BranchesService {
       throw new NotFoundException('Branch not found');
     }
 
-    return branch;
+    return this.withPublicStorefrontUrls(branch);
+  }
+
+  private withPublicStorefrontUrls<T extends { storefrontCoverUrl: string | null; storefrontProfileUrl: string | null }>(branch: T): T {
+    return {
+      ...branch,
+      storefrontCoverUrl: branch.storefrontCoverUrl?.replace(this.legacyMinioUrl, this.publicMinioUrl) ?? null,
+      storefrontProfileUrl: branch.storefrontProfileUrl?.replace(this.legacyMinioUrl, this.publicMinioUrl) ?? null,
+    };
   }
 
   async updateStorefront(id: string, dto: UpdateBranchStorefrontDtoType, user: any) {
