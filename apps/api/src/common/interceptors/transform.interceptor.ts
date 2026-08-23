@@ -43,7 +43,14 @@ export class TransformInterceptor<T>
     if (Array.isArray(value)) {
       return value.map((item) => this.normalizeLegacyMinioUrls(item));
     }
-    if (value && typeof value === 'object' && !(value instanceof Date)) {
+    // Prisma Decimal and other class instances must reach JSON serialization
+    // unchanged; traversing them turns numeric fields into plain objects.
+    if (
+      value &&
+      typeof value === 'object' &&
+      (Object.getPrototypeOf(value) === Object.prototype ||
+        Object.getPrototypeOf(value) === null)
+    ) {
       return Object.fromEntries(
         Object.entries(value as Record<string, unknown>).map(([key, item]) => [
           key,
