@@ -89,13 +89,13 @@ export class ExpensesService {
       orderBy: [{ expenseDate: 'desc' }, { createdAt: 'desc' }],
       include: { vendor: true, attachments: true, branch: { select: { id: true, name: true } } },
     });
-    return Promise.all(expenses.map(async (expense) => ({
+    return expenses.map((expense) => ({
       ...expense,
-      attachments: await Promise.all(expense.attachments.map(async (attachment) => ({
+      attachments: expense.attachments.map((attachment) => ({
         ...attachment,
-        url: await this.minioService.getPresignedUrl(attachment.bucket, attachment.objectKey),
-      }))),
-    })));
+        url: `/api/admin/expenses/${expense.id}/attachments/${attachment.id}`,
+      })),
+    }));
   }
 
   async createExpense(input: ExpenseInput, createdBy?: string) {
@@ -180,7 +180,7 @@ export class ExpensesService {
   }
 
   async getExpense(id: string) {
-    const expense = await this.prisma.expense.findUnique({ where: { id } });
+    const expense = await this.prisma.expense.findUnique({ where: { id }, include: { attachments: true } });
     if (!expense) throw new NotFoundException('ไม่พบรายการรายจ่าย');
     return expense;
   }
@@ -205,5 +205,9 @@ export class ExpensesService {
     const [year, monthNumber] = month.split('-').map(Number);
     if (!year || !monthNumber) throw new BadRequestException('รูปแบบเดือนต้องเป็น YYYY-MM');
     return { gte: new Date(year, monthNumber - 1, 1), lt: new Date(year, monthNumber, 1) };
+  }
+
+  async getAttachmentBuffer(bucketName: string, objectName: string) {
+    return this.minioService.getFileBuffer(bucketName, objectName);
   }
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -102,5 +102,18 @@ export class ExpensesController {
     const expense = await this.expensesService.getExpense(id);
     requireBranchAccess(req.user, expense.branchId);
     return this.expensesService.attachFile(id, file);
+  }
+
+  @Get(':id/attachments/:attachmentId')
+  async getAttachmentFile(@Param('id') id: string, @Param('attachmentId') attachmentId: string, @Req() req: any, @Res() res: any) {
+    const expense = await this.expensesService.getExpense(id);
+    requireBranchAccess(req.user, expense.branchId);
+    const attachment = expense.attachments.find((a: any) => a.id === attachmentId);
+    if (!attachment) {
+      return res.status(404).json({ message: 'Attachment not found' });
+    }
+    const buffer = await this.expensesService.getAttachmentBuffer(attachment.bucket, attachment.objectKey);
+    res.setHeader('Content-Type', attachment.mimeType);
+    res.send(buffer);
   }
 }

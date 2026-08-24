@@ -22,7 +22,7 @@ export class RevenueService {
       include: { branch: { select: { id: true, name: true } }, deductions: true, attachments: true },
       orderBy: [{ settlementDate: 'desc' }, { createdAt: 'desc' }],
     });
-    return Promise.all(rows.map((row) => this.withAttachmentUrls(row)));
+    return rows.map((row) => this.withAttachmentUrls(row));
   }
 
   async summary(branchId: string | undefined, source: string, month?: string) {
@@ -92,7 +92,19 @@ export class RevenueService {
     return { branchId: input.branchId, source: input.source, settlementDate, periodStart: input.periodStart ? new Date(input.periodStart) : null, periodEnd: input.periodEnd ? new Date(input.periodEnd) : null, referenceNumber: input.referenceNumber?.trim() || null, grossAmount, deductionsTotal, netAmount: grossAmount - deductionsTotal, note: input.note?.trim() || null, deductions };
   }
 
-  private validateSource(source: string) { if (!PLATFORM_SOURCES.includes(source)) throw new BadRequestException('แหล่งรายรับไม่ถูกต้อง'); }
+  private validateSource(source: string) { if (!PLATFORM_SOURCES.includes(source)) throw new BadRequestException('ไม่รองรับแหล่งรายรับนี้'); }
   private monthRange(month?: string) { if (!month) return undefined; const [year, monthNumber] = month.split('-').map(Number); if (!year || !monthNumber || monthNumber > 12) throw new BadRequestException('รูปแบบเดือนต้องเป็น YYYY-MM'); return { gte: new Date(year, monthNumber - 1, 1), lt: new Date(year, monthNumber, 1) }; }
-  private async withAttachmentUrls(row: any) { return { ...row, attachments: await Promise.all(row.attachments.map(async (item: any) => ({ ...item, url: await this.minioService.getPresignedUrl(item.bucket, item.objectKey) }))) }; }
+  private withAttachmentUrls(row: any) { 
+    return { 
+      ...row, 
+      attachments: row.attachments.map((item: any) => ({ 
+        ...item, 
+        url: `/api/admin/revenue/${row.id}/attachments/${item.id}` 
+      })) 
+    }; 
+  }
+
+  async getAttachmentBuffer(bucketName: string, objectName: string) {
+    return this.minioService.getFileBuffer(bucketName, objectName);
+  }
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { IsArray, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -33,4 +33,17 @@ export class RevenueController {
   @Patch(':id') async update(@Param('id') id: string, @Body() dto: Partial<RevenueDto>, @Req() req: any) { const row = await this.revenueService.get(id); requireBranchAccess(req.user, row.branchId); return this.revenueService.update(id, dto); }
   @Delete(':id') async delete(@Param('id') id: string, @Req() req: any) { const row = await this.revenueService.get(id); requireBranchAccess(req.user, row.branchId); return this.revenueService.delete(id); }
   @Post(':id/attachments') @UseInterceptors(FileInterceptor('file')) async attach(@Param('id') id: string, @UploadedFile() file: any, @Req() req: any) { const row = await this.revenueService.get(id); requireBranchAccess(req.user, row.branchId); return this.revenueService.attachFile(id, file); }
+
+  @Get(':id/attachments/:attachmentId')
+  async getAttachmentFile(@Param('id') id: string, @Param('attachmentId') attachmentId: string, @Req() req: any, @Res() res: any) {
+    const row = await this.revenueService.get(id);
+    requireBranchAccess(req.user, row.branchId);
+    const attachment = row.attachments.find((a: any) => a.id === attachmentId);
+    if (!attachment) {
+      return res.status(404).json({ message: 'Attachment not found' });
+    }
+    const buffer = await this.revenueService.getAttachmentBuffer(attachment.bucket, attachment.objectKey);
+    res.setHeader('Content-Type', attachment.mimeType);
+    res.send(buffer);
+  }
 }

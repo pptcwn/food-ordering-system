@@ -22,6 +22,7 @@ export class MinioService implements OnModuleInit {
       useSSL,
       accessKey,
       secretKey,
+      region: 'us-east-1',
     });
 
     const publicPresignUrl = this.configService.get<string>('MINIO_PUBLIC_PRESIGNED_URL');
@@ -33,6 +34,7 @@ export class MinioService implements OnModuleInit {
         useSSL: endpoint.protocol === 'https:',
         accessKey,
         secretKey,
+        region: 'us-east-1',
       });
     }
   }
