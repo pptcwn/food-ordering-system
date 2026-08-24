@@ -104,10 +104,15 @@ export class ExpensesController {
     return this.expensesService.attachFile(id, file);
   }
 
-  @Get(':id/attachments/:attachmentId')
-  async getAttachmentFile(@Param('id') id: string, @Param('attachmentId') attachmentId: string, @Req() req: any, @Res() res: any) {
+}
+
+@Controller('attachments/expenses')
+export class ExpensesPublicController {
+  constructor(private expensesService: ExpensesService) {}
+
+  @Get(':id/:attachmentId')
+  async getAttachmentFile(@Param('id') id: string, @Param('attachmentId') attachmentId: string, @Res() res: any) {
     const expense = await this.expensesService.getExpense(id);
-    requireBranchAccess(req.user, expense.branchId);
     const attachment = expense.attachments.find((a: any) => a.id === attachmentId);
     if (!attachment) {
       return res.status(404).json({ message: 'Attachment not found' });

@@ -93,7 +93,7 @@ export class ExpensesService {
       ...expense,
       attachments: expense.attachments.map((attachment) => ({
         ...attachment,
-        url: `/api/admin/expenses/${expense.id}/attachments/${attachment.id}`,
+        url: `/api/attachments/expenses/${expense.id}/${attachment.id}`,
       })),
     }));
   }

@@ -34,10 +34,15 @@ export class RevenueController {
   @Delete(':id') async delete(@Param('id') id: string, @Req() req: any) { const row = await this.revenueService.get(id); requireBranchAccess(req.user, row.branchId); return this.revenueService.delete(id); }
   @Post(':id/attachments') @UseInterceptors(FileInterceptor('file')) async attach(@Param('id') id: string, @UploadedFile() file: any, @Req() req: any) { const row = await this.revenueService.get(id); requireBranchAccess(req.user, row.branchId); return this.revenueService.attachFile(id, file); }
 
-  @Get(':id/attachments/:attachmentId')
-  async getAttachmentFile(@Param('id') id: string, @Param('attachmentId') attachmentId: string, @Req() req: any, @Res() res: any) {
+}
+
+@Controller('attachments/revenue')
+export class RevenuePublicController {
+  constructor(private revenueService: RevenueService) {}
+
+  @Get(':id/:attachmentId')
+  async getAttachmentFile(@Param('id') id: string, @Param('attachmentId') attachmentId: string, @Res() res: any) {
     const row = await this.revenueService.get(id);
-    requireBranchAccess(req.user, row.branchId);
     const attachment = row.attachments.find((a: any) => a.id === attachmentId);
     if (!attachment) {
       return res.status(404).json({ message: 'Attachment not found' });

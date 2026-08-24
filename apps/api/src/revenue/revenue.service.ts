@@ -99,7 +99,7 @@ export class RevenueService {
       ...row, 
       attachments: row.attachments.map((item: any) => ({ 
         ...item, 
-        url: `/api/admin/revenue/${row.id}/attachments/${item.id}` 
+        url: `/api/attachments/revenue/${row.id}/${item.id}` 
       })) 
     }; 
   }

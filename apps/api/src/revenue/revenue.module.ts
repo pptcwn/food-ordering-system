@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
-import { RevenueController } from './revenue.controller';
+import { RevenueController, RevenuePublicController } from './revenue.controller';
 import { RevenueService } from './revenue.service';
 
-@Module({ controllers: [RevenueController], providers: [RevenueService] })
+@Module({ controllers: [RevenueController, RevenuePublicController], providers: [RevenueService] })
 export class RevenueModule {}
