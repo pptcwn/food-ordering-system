@@ -89,9 +89,13 @@ export class MinioService implements OnModuleInit {
     bucketName: string,
     objectName: string,
     expirySeconds = APP_CONFIG.PRESIGNED_URL_EXPIRATION_SECONDS,
-  ): Promise<string> {
-    // Sign private attachment URLs with a browser-reachable hostname, not Docker's `minio` service name.
-    return (this.publicPresignClient || this.client).presignedGetObject(bucketName, objectName, expirySeconds);
+  ): Promise<string | null> {
+    try {
+      return await (this.publicPresignClient || this.client).presignedGetObject(bucketName, objectName, expirySeconds);
+    } catch (error) {
+      console.warn(`[MinioService] Failed to generate presigned URL for ${bucketName}/${objectName}`, error);
+      return null;
+    }
   }
 
   async getFileBuffer(bucketName: string, objectName: string): Promise<Buffer> {

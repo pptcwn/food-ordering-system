@@ -43,20 +43,23 @@ export class TransformInterceptor<T>
     if (Array.isArray(value)) {
       return value.map((item) => this.normalizeLegacyMinioUrls(item));
     }
-    // Prisma Decimal and other class instances must reach JSON serialization
-    // unchanged; traversing them turns numeric fields into plain objects.
+    if (value instanceof Date) {
+      return value;
+    }
     if (
       value &&
       typeof value === 'object' &&
       (Object.getPrototypeOf(value) === Object.prototype ||
         Object.getPrototypeOf(value) === null)
     ) {
-      return Object.fromEntries(
-        Object.entries(value as Record<string, unknown>).map(([key, item]) => [
-          key,
-          this.normalizeLegacyMinioUrls(item),
-        ]),
-      );
+      const obj = value as Record<string, unknown>;
+      const result: Record<string, unknown> = {};
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          result[key] = this.normalizeLegacyMinioUrls(obj[key]);
+        }
+      }
+      return result;
     }
     return value;
   }
