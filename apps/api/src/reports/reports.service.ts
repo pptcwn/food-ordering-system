@@ -5,6 +5,7 @@ import { MinioService } from '../storage/minio.service';
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 import { existsSync } from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class ReportsService {
@@ -358,7 +359,8 @@ export class ReportsService {
   private formatDate(value: Date) { return new Intl.DateTimeFormat('en-GB').format(value); }
   private money(value: number) { return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   private getPdfFontPath() {
-    const candidates = [process.env.REPORT_PDF_FONT_PATH, 'C:\\Windows\\Fonts\\tahoma.ttf'].filter(Boolean) as string[];
+    const defaultSarabun = path.join(__dirname, '..', 'assets', 'fonts', 'Sarabun-Regular.ttf');
+    const candidates = [process.env.REPORT_PDF_FONT_PATH, defaultSarabun, 'C:\\Windows\\Fonts\\tahoma.ttf'].filter(Boolean) as string[];
     return candidates.find((candidate) => existsSync(candidate));
   }
 
